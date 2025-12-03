@@ -4,17 +4,12 @@ import { login, signup } from './actions'
 import { useSearchParams } from 'next/navigation'
 import { BookOpen, Mail, Lock } from 'lucide-react'
 import Link from 'next/link'
+import { Suspense } from 'react'
 
 /**
- * 登录页面
- * 
- * 功能：
- * - 邮箱密码登录
- * - 快速注册
- * - 错误提示
- * - 响应式设计（移动端优先）
+ * 登录内容组件 - 包含 useSearchParams
  */
-export default function LoginPage() {
+function LoginContent() {
   const searchParams = useSearchParams()
   
   // 获取 URL 中的错误参数
@@ -171,5 +166,26 @@ export default function LoginPage() {
         </p>
       </div>
     </div>
+  )
+}
+
+/**
+ * 登录页面
+ * 
+ * 功能：
+ * - 邮箱密码登录
+ * - 快速注册
+ * - 错误提示
+ * - 响应式设计（移动端优先）
+ */
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    }>
+      <LoginContent />
+    </Suspense>
   )
 }
