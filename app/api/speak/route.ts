@@ -41,7 +41,11 @@ export async function POST(req: Request) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          contents: text,
+          contents: [{
+            parts: [{
+              text: text
+            }]
+          }],
           generationConfig: {
             responseModalities: ['AUDIO'],
             speechConfig: {
