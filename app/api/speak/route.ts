@@ -75,7 +75,13 @@ export async function POST(req: Request) {
     }
 
     const data = await response.json()
-    console.log('📊 Gemini响应结构:', JSON.stringify(data).substring(0, 300))
+    console.log('📊 Gemini完整响应:', JSON.stringify(data, null, 2))
+    console.log('📊 响应数据类型:', typeof data)
+    console.log('📊 是否有candidates:', !!data.candidates)
+    if (data.candidates) {
+      console.log('📊 candidates长度:', data.candidates.length)
+      console.log('📊 第一个candidate:', JSON.stringify(data.candidates[0], null, 2))
+    }
     
     // 按照官方SDK示例解析：response.candidates[0].content.parts[0].inline_data.data
     if (data.candidates && 
