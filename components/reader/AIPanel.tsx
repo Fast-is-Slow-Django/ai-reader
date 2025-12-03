@@ -26,7 +26,8 @@ export default function AIPanel({
   context,
   bookId,
 }: AIPanelProps) {
-  const [isSpeaking, setIsSpeaking] = useState(false)
+  const [isSpeakingWord, setIsSpeakingWord] = useState(false)
+  const [isSpeakingExplanation, setIsSpeakingExplanation] = useState(false)
   const [completion, setCompletion] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<Error | null>(null)
@@ -82,64 +83,97 @@ export default function AIPanel({
   }, [isOpen, selectedText, context]) // 当文本或上下文变化时重新调用
 
   /**
-   * 朗读功能 - 使用 Web Speech API
-   * 只朗读选中的单词/短语
+   * 朗读单词 - 使用 Web Speech API
    */
-  const handleSpeak = () => {
+  const handleSpeakWord = () => {
     if (!selectedText) return
 
     // 停止当前朗读
-    if (isSpeaking) {
+    if (isSpeakingWord) {
       window.speechSynthesis.cancel()
-      setIsSpeaking(false)
+      setIsSpeakingWord(false)
       return
     }
 
     try {
-      // 创建语音合成实例
       const utterance = new SpeechSynthesisUtterance(selectedText)
-      
-      // 设置语言为美式英语
       utterance.lang = 'en-US'
-      
-      // 设置语速和音调
-      utterance.rate = 0.9 // 稍慢，便于学习
+      utterance.rate = 0.9
       utterance.pitch = 1.0
       
-      // 监听事件
       utterance.onstart = () => {
-        setIsSpeaking(true)
-        console.log('🔊 开始朗读:', selectedText)
+        setIsSpeakingWord(true)
+        console.log('🔊 开始朗读单词:', selectedText)
       }
       
       utterance.onend = () => {
-        setIsSpeaking(false)
-        console.log('✅ 朗读完成')
+        setIsSpeakingWord(false)
+        console.log('✅ 单词朗读完成')
       }
       
       utterance.onerror = (event) => {
-        setIsSpeaking(false)
+        setIsSpeakingWord(false)
         console.error('❌ 朗读失败:', event.error)
       }
       
-      // 开始朗读
       window.speechSynthesis.speak(utterance)
     } catch (error) {
       console.error('❌ 朗读功能不可用:', error)
-      setIsSpeaking(false)
+      setIsSpeakingWord(false)
     }
   }
 
   /**
-   * 清理：组件卸载时停止朗读
+   * 朗读AI解释 - 使用 Web Speech API
+   */
+  const handleSpeakExplanation = () => {
+    if (!completion) return
+
+    // 停止当前朗读
+    if (isSpeakingExplanation) {
+      window.speechSynthesis.cancel()
+      setIsSpeakingExplanation(false)
+      return
+    }
+
+    try {
+      const utterance = new SpeechSynthesisUtterance(completion)
+      utterance.lang = 'en-US'
+      utterance.rate = 0.9
+      utterance.pitch = 1.0
+      
+      utterance.onstart = () => {
+        setIsSpeakingExplanation(true)
+        console.log('🔊 开始朗读解释')
+      }
+      
+      utterance.onend = () => {
+        setIsSpeakingExplanation(false)
+        console.log('✅ 解释朗读完成')
+      }
+      
+      utterance.onerror = (event) => {
+        setIsSpeakingExplanation(false)
+        console.error('❌ 朗读失败:', event.error)
+      }
+      
+      window.speechSynthesis.speak(utterance)
+    } catch (error) {
+      console.error('❌ 朗读功能不可用:', error)
+      setIsSpeakingExplanation(false)
+    }
+  }
+
+  /**
+   * 清理：组件卸载时停止所有朗读
    */
   useEffect(() => {
     return () => {
-      if (isSpeaking) {
+      if (isSpeakingWord || isSpeakingExplanation) {
         window.speechSynthesis.cancel()
       }
     }
-  }, [isSpeaking])
+  }, [isSpeakingWord, isSpeakingExplanation])
 
   if (!isOpen) return null
 
@@ -170,40 +204,40 @@ export default function AIPanel({
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            {/* 朗读按钮 */}
-            <button
-              onClick={handleSpeak}
-              disabled={!selectedText}
-              className={`
-                p-2 rounded-full transition-all
-                ${isSpeaking 
-                  ? 'bg-blue-600 text-white' 
-                  : 'bg-gray-100 text-gray-700 hover:bg-blue-50 hover:text-blue-600'
-                }
-                disabled:opacity-50 disabled:cursor-not-allowed
-              `}
-              title={isSpeaking ? '停止朗读' : '朗读单词'}
-            >
-              <Volume2 size={20} className={isSpeaking ? 'animate-pulse' : ''} />
-            </button>
-
-            {/* 关闭按钮 */}
-            <button
-              onClick={onClose}
-              className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-              title="关闭"
-            >
-              <X size={20} className="text-gray-500" />
-            </button>
-          </div>
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+            title="关闭"
+          >
+            <X size={20} className="text-gray-500" />
+          </button>
         </div>
 
         {/* 内容区 */}
         <div className="px-6 py-6 space-y-6">
           {/* 选中的文本 */}
           <div>
-            <h3 className="text-sm font-medium text-gray-500 mb-2">Selected Text</h3>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-medium text-gray-500">Selected Text</h3>
+              <button
+                onClick={handleSpeakWord}
+                disabled={!selectedText}
+                className={`
+                  p-1.5 rounded-full transition-all flex items-center gap-1.5 text-xs
+                  ${isSpeakingWord 
+                    ? 'bg-blue-600 text-white' 
+                    : 'bg-gray-200 text-gray-700 hover:bg-blue-100 hover:text-blue-600'
+                  }
+                  disabled:opacity-50 disabled:cursor-not-allowed
+                `}
+                title={isSpeakingWord ? '停止朗读' : '朗读单词'}
+              >
+                <Volume2 size={16} className={isSpeakingWord ? 'animate-pulse' : ''} />
+                <span className="hidden sm:inline">
+                  {isSpeakingWord ? '停止' : '朗读'}
+                </span>
+              </button>
+            </div>
             <div className="bg-gray-50 border-l-4 border-blue-400 p-4 rounded-r-lg">
               <p className="text-lg font-medium text-gray-900">
                 "{selectedText}"
@@ -213,7 +247,29 @@ export default function AIPanel({
 
           {/* AI 解释内容 */}
           <div>
-            <h3 className="text-sm font-medium text-gray-500 mb-3">AI Explanation</h3>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-medium text-gray-500">AI Explanation</h3>
+              {completion && (
+                <button
+                  onClick={handleSpeakExplanation}
+                  disabled={!completion || isLoading}
+                  className={`
+                    p-1.5 rounded-full transition-all flex items-center gap-1.5 text-xs
+                    ${isSpeakingExplanation 
+                      ? 'bg-green-600 text-white' 
+                      : 'bg-gray-200 text-gray-700 hover:bg-green-100 hover:text-green-600'
+                    }
+                    disabled:opacity-50 disabled:cursor-not-allowed
+                  `}
+                  title={isSpeakingExplanation ? '停止朗读' : '朗读解释'}
+                >
+                  <Volume2 size={16} className={isSpeakingExplanation ? 'animate-pulse' : ''} />
+                  <span className="hidden sm:inline">
+                    {isSpeakingExplanation ? '停止' : '朗读'}
+                  </span>
+                </button>
+              )}
+            </div>
             
             {/* 加载状态 */}
             {isLoading && !completion && (
@@ -258,7 +314,7 @@ export default function AIPanel({
         {/* 底部提示 */}
         <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
           <p className="text-xs text-gray-600 text-center">
-            💡 Tip: Click the speaker icon to hear the pronunciation
+            💡 Tip: Click 🔊 to listen to word or explanation
           </p>
         </div>
       </div>
