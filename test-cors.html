@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Test Supabase CORS</title>
+</head>
+<body>
+  <h1>Supabase Storage CORS 测试</h1>
+  <button onclick="testCORS()">测试 CORS</button>
+  <pre id="result"></pre>
+
+  <script>
+    async function testCORS() {
+      const result = document.getElementById('result');
+      result.textContent = '测试中...\n';
+
+      // 替换为你实际的 EPUB 文件 URL
+      const url = 'https://ybjswwpdyppahxhhylij.supabase.co/storage/v1/object/public/user_books/583bb19a-2078-47b0-9101-c5ec9a38dedd/583bb19a-2078-47b0-9101-c5ec9a38dedd-1763617425803-ot7gle.epub';
+      
+      try {
+        // 测试 1: 普通 GET 请求
+        result.textContent += '测试 1: 普通 GET 请求\n';
+        const res1 = await fetch(url, { method: 'GET' });
+        result.textContent += `✅ Status: ${res1.status}\n`;
+        result.textContent += `✅ CORS Header: ${res1.headers.get('access-control-allow-origin')}\n\n`;
+
+        // 测试 2: HEAD 请求
+        result.textContent += '测试 2: HEAD 请求\n';
+        const res2 = await fetch(url, { method: 'HEAD' });
+        result.textContent += `✅ Status: ${res2.status}\n`;
+        result.textContent += `✅ Accept-Ranges: ${res2.headers.get('accept-ranges')}\n\n`;
+
+        // 测试 3: Range 请求
+        result.textContent += '测试 3: Range 请求（EPUB.js 需要）\n';
+        const res3 = await fetch(url, {
+          method: 'GET',
+          headers: { 'Range': 'bytes=0-1023' }
+        });
+        result.textContent += `✅ Status: ${res3.status}\n`;
+        result.textContent += `✅ Content-Range: ${res3.headers.get('content-range')}\n`;
+        result.textContent += `✅ CORS Header: ${res3.headers.get('access-control-allow-origin')}\n\n`;
+
+        if (res3.status === 206 || res3.status === 200) {
+          result.textContent += '🎉 CORS 配置正确！EPUB 应该可以加载。\n';
+        } else {
+          result.textContent += '❌ Range 请求失败，需要配置 CORS。\n';
+        }
+
+      } catch (error) {
+        result.textContent += `❌ 错误: ${error.message}\n`;
+        result.textContent += '\n如果是 CORS 错误，说明需要配置 Storage CORS。\n';
+      }
+    }
+
+    // 页面加载时自动测试
+    window.onload = () => {
+      testCORS();
+    };
+  </script>
+</body>
+</html>

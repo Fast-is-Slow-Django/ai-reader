@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>EPUB 加载测试</title>
+  <script src="https://cdn.jsdelivr.net/npm/epubjs/dist/epub.min.js"></script>
+</head>
+<body>
+  <h1>EPUB 加载测试</h1>
+  <div id="status"></div>
+  <div id="viewer" style="height: 600px; border: 1px solid #ccc; margin-top: 20px;"></div>
+
+  <script>
+    const statusDiv = document.getElementById('status');
+    
+    // 替换为你的实际 EPUB 文件 URL
+    const epubUrl = 'https://ybjswwpdyppahxhhylij.supabase.co/storage/v1/object/public/user_books/583bb19a-2078-47b0-9101-c5ec9a38dedd/583bb19a-2078-47b0-9101-c5ec9a38dedd-1763617425803-ot7gle.epub';
+    
+    statusDiv.innerHTML = '正在加载 EPUB...';
+    
+    // 测试 1: 直接 fetch
+    fetch(epubUrl)
+      .then(res => {
+        statusDiv.innerHTML += `<br>✅ Fetch 成功: ${res.status}`;
+        statusDiv.innerHTML += `<br>✅ CORS Header: ${res.headers.get('access-control-allow-origin')}`;
+        return res.blob();
+      })
+      .then(blob => {
+        statusDiv.innerHTML += `<br>✅ 文件大小: ${(blob.size / 1024 / 1024).toFixed(2)} MB`;
+        
+        // 测试 2: EPUB.js 加载
+        statusDiv.innerHTML += `<br><br>正在用 EPUB.js 解析...`;
+        
+        const book = ePub(epubUrl);
+        const rendition = book.renderTo("viewer", {
+          width: "100%",
+          height: "100%"
+        });
+        
+        rendition.display();
+        
+        book.ready.then(() => {
+          statusDiv.innerHTML += `<br>🎉 EPUB 加载成功！`;
+          statusDiv.innerHTML += `<br>标题: ${book.packaging.metadata.title}`;
+        }).catch(err => {
+          statusDiv.innerHTML += `<br>❌ EPUB.js 解析失败: ${err.message}`;
+          console.error('EPUB.js 错误:', err);
+        });
+      })
+      .catch(err => {
+        statusDiv.innerHTML += `<br>❌ 加载失败: ${err.message}`;
+        console.error('加载错误:', err);
+      });
+  </script>
+</body>
+</html>
