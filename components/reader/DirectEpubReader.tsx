@@ -889,12 +889,7 @@ export default function DirectEpubReader({ url, title, bookId }: DirectEpubReade
         {/* Viewer 容器始终存在 */}
         <div ref={viewerRef} className="w-full h-full" />
         
-        {/* 页码显示 - 右下角，避开底部工具栏 */}
-        {!loading && !error && totalPages > 0 && (
-          <div className="absolute bottom-24 right-4 px-3 py-1.5 bg-black/60 text-white rounded-md text-xs font-medium pointer-events-none z-50">
-            {currentPage} / {totalPages}
-          </div>
-        )}
+        {/* 页码移动到底部工具栏 */}
         
         {/* 加载遮罩 */}
         {loading && (
@@ -920,68 +915,74 @@ export default function DirectEpubReader({ url, title, bookId }: DirectEpubReade
         )}
       </main>
 
-      {/* 🆕 新的底部工具栏 - 整合所有功能 */}
-      <footer className="bg-white border-t border-gray-200 flex-shrink-0 shadow-lg">
+      {/* 🍎 Apple风格底部工具栏 */}
+      <footer className="bg-white/95 backdrop-blur-md border-t border-gray-200/80 flex-shrink-0 shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
         {/* 第一行：书名 + 进度 */}
-        <div className="flex items-center justify-between px-4 py-2 border-b border-gray-100">
-          <h1 className="text-xs font-medium text-gray-600 truncate flex-1 mr-2">
+        <div className="flex items-center justify-between px-5 py-2.5 border-b border-gray-100/60">
+          <h1 className="text-[13px] font-medium text-gray-700 truncate flex-1 mr-3 tracking-tight">
             {title}
           </h1>
-          <span className="text-xs text-gray-500 whitespace-nowrap">{progress}%</span>
+          <span className="text-[12px] text-gray-500 font-medium whitespace-nowrap">{progress}%</span>
         </div>
         
-        {/* 第二行：所有控制按钮 */}
-        <div className="flex items-center justify-between px-4 py-3">
-          {/* 左侧：返回书架 */}
+        {/* 第二行：控制区域 */}
+        <div className="flex items-center justify-between px-4 py-3.5">
+          {/* 左侧：返回 */}
           <Link
             href="/dashboard"
-            className="text-gray-600 hover:text-blue-600 transition-colors p-2"
+            className="text-gray-500 hover:text-gray-700 transition-all p-1.5 hover:bg-gray-100/60 rounded-lg"
             title="返回书架"
           >
-            <ChevronLeft size={22} />
+            <ChevronLeft size={20} strokeWidth={2.5} />
           </Link>
           
-          {/* 中间：翻页控制 */}
-          <div className="flex items-center gap-3">
+          {/* 中间：翻页区域（加大间距） */}
+          <div className="flex items-center gap-6">
             <button
               onClick={handlePrevPage}
               disabled={loading || !!error}
-              className="p-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-md hover:shadow-lg hover:from-blue-600 hover:to-blue-700 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-sm flex items-center justify-center"
               title="上一页"
             >
-              <ChevronLeft size={20} />
+              <ChevronLeft size={18} strokeWidth={2.5} />
             </button>
             
-            <span className="text-xs text-gray-500 max-w-[120px] truncate text-center">
-              {currentChapter}
-            </span>
+            {/* 章节和页码信息 */}
+            <div className="flex flex-col items-center min-w-[140px]">
+              <span className="text-[11px] text-gray-500 truncate max-w-[140px] mb-0.5">
+                {currentChapter}
+              </span>
+              <span className="text-[13px] font-semibold text-gray-700 tracking-tight">
+                {totalPages > 0 ? `${currentPage} / ${totalPages}` : '---'}
+              </span>
+            </div>
             
             <button
               onClick={handleNextPage}
               disabled={loading || !!error}
-              className="p-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-md hover:shadow-lg hover:from-blue-600 hover:to-blue-700 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-sm flex items-center justify-center"
               title="下一页"
             >
-              <ChevronRight size={20} />
+              <ChevronRight size={18} strokeWidth={2.5} />
             </button>
           </div>
           
-          {/* 右侧：词汇 + 设置 */}
-          <div className="flex items-center gap-2">
+          {/* 右侧：功能按钮 */}
+          <div className="flex items-center gap-1">
             <button
               onClick={() => setIsVocabularyListOpen(true)}
-              className="text-gray-600 hover:text-purple-600 transition-colors p-2"
+              className="text-gray-500 hover:text-purple-600 transition-all p-1.5 hover:bg-purple-50 rounded-lg"
               title="词汇列表"
             >
-              <BookMarked size={22} />
+              <BookMarked size={20} strokeWidth={2} />
             </button>
             
             <button
               onClick={() => setIsSettingsOpen(true)}
-              className="text-gray-600 hover:text-blue-600 transition-colors p-2"
+              className="text-gray-500 hover:text-blue-600 transition-all p-1.5 hover:bg-blue-50 rounded-lg"
               title="阅读设置"
             >
-              <Settings size={22} />
+              <Settings size={20} strokeWidth={2} />
             </button>
           </div>
         </div>
