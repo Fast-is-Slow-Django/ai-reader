@@ -698,18 +698,34 @@ export default function DirectEpubReader({ url, title, bookId }: DirectEpubReade
         nodeText: endInfo.node.textContent?.substring(0, 50)
       })
       
-      // 3. 创建 Range 对象选中文本
+      // 3. 验证节点一致性
+      if (updatedStartInfo.node !== endInfo.node) {
+        console.warn('⚠️ 两次点击不在同一文本段，请在同一段落内选词')
+        console.log('   起点节点:', updatedStartInfo.node.textContent?.substring(0, 30))
+        console.log('   终点节点:', endInfo.node.textContent?.substring(0, 30))
+        
+        // 重置状态，让用户重新选择
+        selectionStateRef.current = 'IDLE'
+        firstClickInfoRef.current = null
+        
+        // 可选：显示提示（如果需要）
+        // alert('请在同一段落内选择文字')
+        
+        return
+      }
+      
+      // 4. 创建 Range 对象选中文本
       const iframe = viewerRef.current?.querySelector('iframe')
       if (!iframe?.contentDocument) return
 
       const doc = iframe.contentDocument
       const range = doc.createRange()
       
-      // 如果是同一个节点且终点在起点之前，自动交换
+      // 如果终点在起点之前，自动交换
       let actualStart = updatedStartInfo
       let actualEnd = endInfo
       
-      if (updatedStartInfo.node === endInfo.node && endInfo.offset < updatedStartInfo.offset) {
+      if (endInfo.offset < updatedStartInfo.offset) {
         actualStart = endInfo
         actualEnd = updatedStartInfo
         console.log('🔄 检测到逆序选择，自动交换起止点')
@@ -720,7 +736,7 @@ export default function DirectEpubReader({ url, title, bookId }: DirectEpubReade
         startOffset: actualStart.offset,
         endNode: actualEnd.node,
         endOffset: actualEnd.offset,
-        sameNode: actualStart.node === actualEnd.node
+        sameNode: true // 已验证是同一节点
       })
       
       try {
