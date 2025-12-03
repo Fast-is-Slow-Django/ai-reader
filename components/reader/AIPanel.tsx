@@ -102,18 +102,19 @@ export default function AIPanel({
     console.log('🔊 开始朗读单词:', selectedText)
 
     try {
-      // 调用Gemini音频API
+      // 调用Gemini音频API（支持缓存）
       const response = await fetch('/api/speak', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: selectedText })
+        body: JSON.stringify({ text: selectedText, bookId })
       })
 
       const contentType = response.headers.get('Content-Type')
+      const cacheStatus = response.headers.get('X-Audio-Cache')
       
       // 检查是否返回音频
       if (contentType?.includes('audio')) {
-        console.log('✅ 使用Gemini音频')
+        console.log(`✅ 使用Gemini音频 ${cacheStatus === 'HIT' ? '(来自缓存)' : '(新生成)'}`)
         const audioBlob = await response.blob()
         const audioUrl = URL.createObjectURL(audioBlob)
         const audio = new Audio(audioUrl)
@@ -176,18 +177,19 @@ export default function AIPanel({
     console.log('🔊 开始朗读解释')
 
     try {
-      // 调用Gemini音频API
+      // 调用Gemini音频API（支持缓存）
       const response = await fetch('/api/speak', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: completion })
+        body: JSON.stringify({ text: completion, bookId })
       })
 
       const contentType = response.headers.get('Content-Type')
+      const cacheStatus = response.headers.get('X-Audio-Cache')
       
       // 检查是否返回音频
       if (contentType?.includes('audio')) {
-        console.log('✅ 使用Gemini音频')
+        console.log(`✅ 使用Gemini音频 ${cacheStatus === 'HIT' ? '(来自缓存)' : '(新生成)'}`)
         const audioBlob = await response.blob()
         const audioUrl = URL.createObjectURL(audioBlob)
         const audio = new Audio(audioUrl)

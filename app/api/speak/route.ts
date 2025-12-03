@@ -1,14 +1,73 @@
+import { createClient } from '@/utils/supabase/server'
+
 export const runtime = 'edge'
 
 /**
  * 使用 Gemini 2.5 Flash TTS 生成高质量语音
+ * 支持音频缓存，减少API调用
  */
 export async function POST(req: Request) {
   try {
-    const { text } = await req.json()
+    const { text, bookId } = await req.json()
 
     if (!text) {
       return new Response('Missing text', { status: 400 })
+    }
+
+    console.log('🎤 TTS请求:', text.substring(0, 50), '| bookId:', bookId || '(未提供)')
+
+    // 验证用户身份
+    const supabase = await createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    
+    if (authError || !user) {
+      console.error('❌ 用户未认证')
+      return new Response(
+        JSON.stringify({ 
+          text,
+          useBrowserTTS: true,
+          error: 'Unauthorized'
+        }), 
+        {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      )
+    }
+
+    // 🔍 查询音频缓存
+    if (bookId) {
+      console.log('🔍 查询音频缓存:', { userId: user.id, text, bookId })
+      
+      const { data: cachedData, error: cacheError } = await supabase
+        .from('vocabulary_cache')
+        .select('audio_data, audio_mime_type')
+        .eq('user_id', user.id)
+        .eq('book_id', bookId)
+        .eq('selected_text', text)
+        .not('audio_data', 'is', null)
+        .maybeSingle()
+
+      if (cachedData && cachedData.audio_data) {
+        console.log('✅ 找到音频缓存，直接返回')
+        
+        // Base64解码音频
+        const binaryString = atob(cachedData.audio_data)
+        const bytes = new Uint8Array(binaryString.length)
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i)
+        }
+        
+        return new Response(bytes, {
+          status: 200,
+          headers: {
+            'Content-Type': cachedData.audio_mime_type || 'audio/wav',
+            'X-Audio-Cache': 'HIT',
+          },
+        })
+      } else {
+        console.log('ℹ️ 未找到音频缓存，将调用 Gemini TTS')
+      }
     }
 
     console.log('🎤 使用Gemini 2.5 Flash Preview TTS生成语音:', text.substring(0, 50))
@@ -143,11 +202,55 @@ export async function POST(req: Request) {
         wavFile.set(wavHeader, 0)
         wavFile.set(pcmBytes, 44)
         
+        // 💾 保存音频到缓存
+        if (bookId && user) {
+          console.log('💾 保存音频到缓存')
+          
+          // 将WAV文件转为Base64
+          let wavBase64 = ''
+          const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
+          const bytes = wavFile
+          const len = bytes.length
+          
+          for (let i = 0; i < len; i += 3) {
+            const byte1 = bytes[i]
+            const byte2 = i + 1 < len ? bytes[i + 1] : 0
+            const byte3 = i + 2 < len ? bytes[i + 2] : 0
+            
+            const encoded1 = byte1 >> 2
+            const encoded2 = ((byte1 & 3) << 4) | (byte2 >> 4)
+            const encoded3 = ((byte2 & 15) << 2) | (byte3 >> 6)
+            const encoded4 = byte3 & 63
+            
+            wavBase64 += chars[encoded1] + chars[encoded2]
+            wavBase64 += i + 1 < len ? chars[encoded3] : '='
+            wavBase64 += i + 2 < len ? chars[encoded4] : '='
+          }
+          
+          // 更新数据库中对应的记录
+          const { error: updateError } = await supabase
+            .from('vocabulary_cache')
+            .update({
+              audio_data: wavBase64,
+              audio_mime_type: 'audio/wav',
+            })
+            .eq('user_id', user.id)
+            .eq('book_id', bookId)
+            .eq('selected_text', text)
+          
+          if (updateError) {
+            console.error('❌ 保存音频缓存失败:', updateError)
+          } else {
+            console.log('✅ 音频已保存到缓存')
+          }
+        }
+        
         // 返回WAV音频流
         return new Response(wavFile, {
           status: 200,
           headers: {
             'Content-Type': 'audio/wav',
+            'X-Audio-Cache': 'MISS',
           },
         })
       }
