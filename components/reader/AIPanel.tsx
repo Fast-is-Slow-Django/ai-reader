@@ -83,83 +83,149 @@ export default function AIPanel({
   }, [isOpen, selectedText, context]) // 当文本或上下文变化时重新调用
 
   /**
-   * 朗读单词 - 使用 Web Speech API
+   * 朗读单词 - 优先使用Gemini，降级到浏览器TTS
    */
-  const handleSpeakWord = () => {
+  const handleSpeakWord = async () => {
     if (!selectedText) return
 
     // 停止当前朗读
     if (isSpeakingWord) {
       window.speechSynthesis.cancel()
+      // 停止正在播放的音频
+      const audioElements = document.querySelectorAll('audio')
+      audioElements.forEach(audio => audio.pause())
       setIsSpeakingWord(false)
       return
     }
 
+    setIsSpeakingWord(true)
+    console.log('🔊 开始朗读单词:', selectedText)
+
     try {
-      const utterance = new SpeechSynthesisUtterance(selectedText)
-      utterance.lang = 'en-US'
-      utterance.rate = 0.9
-      utterance.pitch = 1.0
+      // 调用Gemini音频API
+      const response = await fetch('/api/speak', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: selectedText })
+      })
+
+      const contentType = response.headers.get('Content-Type')
       
-      utterance.onstart = () => {
-        setIsSpeakingWord(true)
-        console.log('🔊 开始朗读单词:', selectedText)
+      // 检查是否返回音频
+      if (contentType?.includes('audio')) {
+        console.log('✅ 使用Gemini音频')
+        const audioBlob = await response.blob()
+        const audioUrl = URL.createObjectURL(audioBlob)
+        const audio = new Audio(audioUrl)
+        
+        audio.onended = () => {
+          setIsSpeakingWord(false)
+          URL.revokeObjectURL(audioUrl)
+          console.log('✅ Gemini音频播放完成')
+        }
+        
+        audio.onerror = () => {
+          setIsSpeakingWord(false)
+          console.error('❌ 音频播放失败')
+        }
+        
+        audio.play()
+      } else {
+        // 降级到浏览器TTS
+        console.log('⚠️ 降级使用浏览器TTS')
+        const utterance = new SpeechSynthesisUtterance(selectedText)
+        utterance.lang = 'en-US'
+        utterance.rate = 0.9
+        utterance.pitch = 1.0
+        
+        utterance.onend = () => {
+          setIsSpeakingWord(false)
+          console.log('✅ 浏览器TTS完成')
+        }
+        
+        utterance.onerror = () => {
+          setIsSpeakingWord(false)
+          console.error('❌ TTS失败')
+        }
+        
+        window.speechSynthesis.speak(utterance)
       }
-      
-      utterance.onend = () => {
-        setIsSpeakingWord(false)
-        console.log('✅ 单词朗读完成')
-      }
-      
-      utterance.onerror = (event) => {
-        setIsSpeakingWord(false)
-        console.error('❌ 朗读失败:', event.error)
-      }
-      
-      window.speechSynthesis.speak(utterance)
     } catch (error) {
-      console.error('❌ 朗读功能不可用:', error)
+      console.error('❌ 朗读失败:', error)
       setIsSpeakingWord(false)
     }
   }
 
   /**
-   * 朗读AI解释 - 使用 Web Speech API
+   * 朗读AI解释 - 优先使用Gemini，降级到浏览器TTS
    */
-  const handleSpeakExplanation = () => {
+  const handleSpeakExplanation = async () => {
     if (!completion) return
 
     // 停止当前朗读
     if (isSpeakingExplanation) {
       window.speechSynthesis.cancel()
+      // 停止正在播放的音频
+      const audioElements = document.querySelectorAll('audio')
+      audioElements.forEach(audio => audio.pause())
       setIsSpeakingExplanation(false)
       return
     }
 
+    setIsSpeakingExplanation(true)
+    console.log('🔊 开始朗读解释')
+
     try {
-      const utterance = new SpeechSynthesisUtterance(completion)
-      utterance.lang = 'en-US'
-      utterance.rate = 0.9
-      utterance.pitch = 1.0
+      // 调用Gemini音频API
+      const response = await fetch('/api/speak', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: completion })
+      })
+
+      const contentType = response.headers.get('Content-Type')
       
-      utterance.onstart = () => {
-        setIsSpeakingExplanation(true)
-        console.log('🔊 开始朗读解释')
+      // 检查是否返回音频
+      if (contentType?.includes('audio')) {
+        console.log('✅ 使用Gemini音频')
+        const audioBlob = await response.blob()
+        const audioUrl = URL.createObjectURL(audioBlob)
+        const audio = new Audio(audioUrl)
+        
+        audio.onended = () => {
+          setIsSpeakingExplanation(false)
+          URL.revokeObjectURL(audioUrl)
+          console.log('✅ Gemini音频播放完成')
+        }
+        
+        audio.onerror = () => {
+          setIsSpeakingExplanation(false)
+          console.error('❌ 音频播放失败')
+        }
+        
+        audio.play()
+      } else {
+        // 降级到浏览器TTS
+        console.log('⚠️ 降级使用浏览器TTS')
+        const utterance = new SpeechSynthesisUtterance(completion)
+        utterance.lang = 'en-US'
+        utterance.rate = 0.9
+        utterance.pitch = 1.0
+        
+        utterance.onend = () => {
+          setIsSpeakingExplanation(false)
+          console.log('✅ 浏览器TTS完成')
+        }
+        
+        utterance.onerror = () => {
+          setIsSpeakingExplanation(false)
+          console.error('❌ TTS失败')
+        }
+        
+        window.speechSynthesis.speak(utterance)
       }
-      
-      utterance.onend = () => {
-        setIsSpeakingExplanation(false)
-        console.log('✅ 解释朗读完成')
-      }
-      
-      utterance.onerror = (event) => {
-        setIsSpeakingExplanation(false)
-        console.error('❌ 朗读失败:', event.error)
-      }
-      
-      window.speechSynthesis.speak(utterance)
     } catch (error) {
-      console.error('❌ 朗读功能不可用:', error)
+      console.error('❌ 朗读失败:', error)
       setIsSpeakingExplanation(false)
     }
   }
