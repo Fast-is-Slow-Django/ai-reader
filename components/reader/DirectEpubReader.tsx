@@ -681,30 +681,7 @@ export default function DirectEpubReader({ url, title, bookId }: DirectEpubReade
         nodeText: endInfo.node.textContent?.substring(0, 50)
       })
       
-      // 2. 验证节点一致性（在移除高亮前验证）
-      if (startInfo.node !== endInfo.node) {
-        console.warn('⚠️ 两次点击不在同一文本段，请在同一段落内选词')
-        console.log('   起点节点:', startInfo.node.textContent?.substring(0, 30))
-        console.log('   终点节点:', endInfo.node.textContent?.substring(0, 30))
-        
-        // 移除overlay高亮
-        if (tempHighlightOverlayRef.current) {
-          try {
-            tempHighlightOverlayRef.current.remove()
-            tempHighlightOverlayRef.current = null
-          } catch (error) {
-            console.warn('清理overlay失败:', error)
-          }
-        }
-        
-        // 重置状态，让用户重新选择
-        selectionStateRef.current = 'IDLE'
-        firstClickInfoRef.current = null
-        
-        return
-      }
-      
-      // 3. 位置已获取，现在可以安全移除overlay
+      // 2. 位置已获取，现在可以安全移除overlay
       if (tempHighlightOverlayRef.current) {
         try {
           tempHighlightOverlayRef.current.remove()
@@ -737,7 +714,7 @@ export default function DirectEpubReader({ url, title, bookId }: DirectEpubReade
         startOffset: actualStart.offset,
         endNode: actualEnd.node,
         endOffset: actualEnd.offset,
-        sameNode: true // 已验证是同一节点
+        sameNode: actualStart.node === actualEnd.node
       })
       
       try {
