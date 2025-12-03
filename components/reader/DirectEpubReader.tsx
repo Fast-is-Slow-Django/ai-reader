@@ -45,7 +45,7 @@ export default function DirectEpubReader({ url, title, bookId }: DirectEpubReade
   // 两点选词状态（使用 ref 避免闭包问题）
   const selectionStateRef = useRef<'IDLE' | 'WAITING'>('IDLE')
   const firstClickInfoRef = useRef<{ node: Node; offset: number; element: HTMLElement } | null>(null)
-  const tempHighlightRef = useRef<HTMLElement | null>(null)
+  const tempHighlightOverlayRef = useRef<HTMLDivElement | null>(null) // 改为overlay div，不修改DOM
   const finalHighlightRef = useRef<HTMLSpanElement | null>(null)
 
   // EPUB.js 引用
@@ -367,7 +367,7 @@ export default function DirectEpubReader({ url, title, bookId }: DirectEpubReade
         bookRef.current = null
       }
       // 清理高亮引用
-      tempHighlightRef.current = null
+      tempHighlightOverlayRef.current = null
       finalHighlightRef.current = null
       firstClickInfoRef.current = null
       // 重置标志
@@ -579,15 +579,16 @@ export default function DirectEpubReader({ url, title, bookId }: DirectEpubReade
       nodeText: clickInfo.node.textContent?.substring(0, 50)
     })
 
-    // 添加绿色单词高亮
+    // 添加黄色高亮 - 使用overlay，不修改DOM
     try {
       const iframe = viewerRef.current?.querySelector('iframe')
-      if (!iframe?.contentDocument) return
+      if (!iframe?.contentDocument || !iframe?.contentWindow) return
       
       const doc = iframe.contentDocument
+      const win = iframe.contentWindow
       const range = doc.createRange()
       
-      // 获取单词的完整范围（从 wordStart 到 wordEnd）
+      // 获取单词的完整范围
       const text = clickInfo.node.textContent || ''
       const wordStart = clickInfo.offset
       
@@ -603,25 +604,39 @@ export default function DirectEpubReader({ url, title, bookId }: DirectEpubReade
       const word = range.toString()
       console.log('📝 第一次点击的单词:', word)
       
-      // 用绿色 span 包裹单词
-      const span = doc.createElement('span')
-      span.style.backgroundColor = 'lightgreen'
-      span.style.opacity = '0.5'
-      span.setAttribute('data-first-word', 'true')
-      range.surroundContents(span)
-      
-      tempHighlightRef.current = span
-      
-      // 保存第一次点击的位置（保存原始 offset，因为移除 span 后需要用）
-      firstClickInfoRef.current = {
-        ...clickInfo,
-        // 保持原始的 offset（wordStart）
-        offset: wordStart
+      // 🔑 关键：使用绝对定位的overlay，不修改DOM结构
+      const rects = range.getClientRects()
+      if (rects.length > 0) {
+        const rect = rects[0]
+        
+        // 创建overlay div
+        const overlay = doc.createElement('div')
+        overlay.style.position = 'absolute'
+        overlay.style.left = rect.left + win.scrollX + 'px'
+        overlay.style.top = rect.top + win.scrollY + 'px'
+        overlay.style.width = rect.width + 'px'
+        overlay.style.height = rect.height + 'px'
+        overlay.style.backgroundColor = 'yellow'
+        overlay.style.opacity = '0.4'
+        overlay.style.pointerEvents = 'none' // 不阻挡点击事件
+        overlay.style.zIndex = '999'
+        overlay.setAttribute('data-temp-highlight', 'true')
+        
+        doc.body.appendChild(overlay)
+        tempHighlightOverlayRef.current = overlay
+        
+        console.log('✨ 已添加overlay高亮（黄色）- DOM未修改')
       }
       
-      console.log('✨ 已添加单词高亮（绿色）')
+      // 保存第一次点击的位置（原始节点引用）
+      firstClickInfoRef.current = {
+        ...clickInfo,
+        offset: wordStart // 保存单词开始位置
+      }
+      
+      console.log('📍 已保存原始节点引用')
     } catch (error) {
-      console.error('❌ 添加单词高亮失败:', error)
+      console.error('❌ 添加高亮失败:', error)
       firstClickInfoRef.current = clickInfo
     }
     
@@ -663,17 +678,13 @@ export default function DirectEpubReader({ url, title, bookId }: DirectEpubReade
         console.log('   起点节点:', startInfo.node.textContent?.substring(0, 30))
         console.log('   终点节点:', endInfo.node.textContent?.substring(0, 30))
         
-        // 移除高亮
-        if (tempHighlightRef.current) {
+        // 移除overlay高亮
+        if (tempHighlightOverlayRef.current) {
           try {
-            const parent = tempHighlightRef.current.parentNode
-            while (tempHighlightRef.current.firstChild) {
-              parent?.insertBefore(tempHighlightRef.current.firstChild, tempHighlightRef.current)
-            }
-            parent?.removeChild(tempHighlightRef.current)
-            tempHighlightRef.current = null
+            tempHighlightOverlayRef.current.remove()
+            tempHighlightOverlayRef.current = null
           } catch (error) {
-            console.warn('清理高亮失败:', error)
+            console.warn('清理overlay失败:', error)
           }
         }
         
@@ -684,26 +695,14 @@ export default function DirectEpubReader({ url, title, bookId }: DirectEpubReade
         return
       }
       
-      // 3. 位置已获取，现在可以安全移除高亮
-      if (tempHighlightRef.current) {
+      // 3. 位置已获取，现在可以安全移除overlay
+      if (tempHighlightOverlayRef.current) {
         try {
-          const parent = tempHighlightRef.current.parentNode
-          
-          if (parent) {
-            // 用文本节点替换 span
-            while (tempHighlightRef.current.firstChild) {
-              parent.insertBefore(tempHighlightRef.current.firstChild, tempHighlightRef.current)
-            }
-            parent.removeChild(tempHighlightRef.current)
-            
-            // 合并相邻的文本节点
-            parent.normalize()
-            
-            tempHighlightRef.current = null
-            console.log('🗑️ 已移除第一个单词的绿色高亮')
-          }
+          tempHighlightOverlayRef.current.remove()
+          tempHighlightOverlayRef.current = null
+          console.log('🗑️ 已移除overlay高亮（黄色）')
         } catch (error) {
-          console.warn('移除第一个单词高亮失败:', error)
+          console.warn('移除overlay失败:', error)
         }
       }
       
