@@ -645,13 +645,48 @@ export default function DirectEpubReader({ url, title, bookId }: DirectEpubReade
     }
     
     try {
-      // 1. 移除第一次点击的绿色高亮，并更新节点引用
-      let updatedStartInfo = startInfo
+      // 1. 先获取第二次点击位置（此时高亮还在，DOM未变化）
+      const endInfo = getClickPosition(event, true) // true = 扩展到单词结尾
+      if (!endInfo) {
+        console.error('❌ 无法获取第二次点击位置')
+        return
+      }
       
+      console.log('📍 终点位置（单词结尾）:', {
+        offset: endInfo.offset,
+        nodeText: endInfo.node.textContent?.substring(0, 50)
+      })
+      
+      // 2. 验证节点一致性（在移除高亮前验证）
+      if (startInfo.node !== endInfo.node) {
+        console.warn('⚠️ 两次点击不在同一文本段，请在同一段落内选词')
+        console.log('   起点节点:', startInfo.node.textContent?.substring(0, 30))
+        console.log('   终点节点:', endInfo.node.textContent?.substring(0, 30))
+        
+        // 移除高亮
+        if (tempHighlightRef.current) {
+          try {
+            const parent = tempHighlightRef.current.parentNode
+            while (tempHighlightRef.current.firstChild) {
+              parent?.insertBefore(tempHighlightRef.current.firstChild, tempHighlightRef.current)
+            }
+            parent?.removeChild(tempHighlightRef.current)
+            tempHighlightRef.current = null
+          } catch (error) {
+            console.warn('清理高亮失败:', error)
+          }
+        }
+        
+        // 重置状态，让用户重新选择
+        selectionStateRef.current = 'IDLE'
+        firstClickInfoRef.current = null
+        
+        return
+      }
+      
+      // 3. 位置已获取，现在可以安全移除高亮
       if (tempHighlightRef.current) {
         try {
-          // 移除 span 会将内部文本节点合并到父节点
-          // 使用 Node.normalize() 来合并相邻文本节点
           const parent = tempHighlightRef.current.parentNode
           
           if (parent) {
@@ -664,54 +699,12 @@ export default function DirectEpubReader({ url, title, bookId }: DirectEpubReade
             // 合并相邻的文本节点
             parent.normalize()
             
-            // 现在 parent 的第一个文本子节点就是合并后的完整文本
-            const iframe = viewerRef.current?.querySelector('iframe')
-            const doc = iframe?.contentDocument || document
-            const walker = doc.createTreeWalker(parent, NodeFilter.SHOW_TEXT)
-            const newTextNode = walker.nextNode()
-            
-            if (newTextNode) {
-              updatedStartInfo = {
-                ...startInfo,
-                node: newTextNode,
-                // offset 保持不变，因为是从这个位置开始的
-              }
-            }
-            
             tempHighlightRef.current = null
             console.log('🗑️ 已移除第一个单词的绿色高亮')
           }
         } catch (error) {
           console.warn('移除第一个单词高亮失败:', error)
         }
-      }
-      
-      // 2. 获取第二次点击位置（扩展到单词结尾）
-      const endInfo = getClickPosition(event, true) // true = 扩展到单词结尾
-      if (!endInfo) {
-        console.error('❌ 无法获取第二次点击位置')
-        return
-      }
-      
-      console.log('📍 终点位置（单词结尾）:', {
-        offset: endInfo.offset,
-        nodeText: endInfo.node.textContent?.substring(0, 50)
-      })
-      
-      // 3. 验证节点一致性
-      if (updatedStartInfo.node !== endInfo.node) {
-        console.warn('⚠️ 两次点击不在同一文本段，请在同一段落内选词')
-        console.log('   起点节点:', updatedStartInfo.node.textContent?.substring(0, 30))
-        console.log('   终点节点:', endInfo.node.textContent?.substring(0, 30))
-        
-        // 重置状态，让用户重新选择
-        selectionStateRef.current = 'IDLE'
-        firstClickInfoRef.current = null
-        
-        // 可选：显示提示（如果需要）
-        // alert('请在同一段落内选择文字')
-        
-        return
       }
       
       // 4. 创建 Range 对象选中文本
@@ -722,12 +715,12 @@ export default function DirectEpubReader({ url, title, bookId }: DirectEpubReade
       const range = doc.createRange()
       
       // 如果终点在起点之前，自动交换
-      let actualStart = updatedStartInfo
+      let actualStart = startInfo
       let actualEnd = endInfo
       
-      if (endInfo.offset < updatedStartInfo.offset) {
+      if (endInfo.offset < startInfo.offset) {
         actualStart = endInfo
-        actualEnd = updatedStartInfo
+        actualEnd = startInfo
         console.log('🔄 检测到逆序选择，自动交换起止点')
       }
       
@@ -750,7 +743,7 @@ export default function DirectEpubReader({ url, title, bookId }: DirectEpubReade
         return
       }
       
-      // 4. 提取选中的文本
+      // 5. 提取选中的文本
       const selectedText = range.toString().trim()
       
       if (!selectedText) {
@@ -771,7 +764,7 @@ export default function DirectEpubReader({ url, title, bookId }: DirectEpubReade
       
       console.log('✅ 选中文本:', selectedText)
       
-      // 5. 获取上下文
+      // 6. 获取上下文
       const container = range.commonAncestorContainer
       const fullText = container.textContent || ''
       const index = fullText.indexOf(selectedText)
@@ -787,7 +780,7 @@ export default function DirectEpubReader({ url, title, bookId }: DirectEpubReade
       
       console.log('✅ 完整上下文:', context)
       
-      // 6. 添加绿色高亮
+      // 7. 添加绿色高亮
       try {
         const span = doc.createElement('span')
         span.style.backgroundColor = 'lightgreen'
@@ -799,7 +792,7 @@ export default function DirectEpubReader({ url, title, bookId }: DirectEpubReade
         console.warn('添加高亮失败:', error)
       }
       
-      // 7. 保存选中内容并打开 AI 面板
+      // 8. 保存选中内容并打开 AI 面板
       console.log('🤖 打开 AI 面板')
       console.log('   文本:', selectedText)
       console.log('   上下文长度:', context.length)
@@ -808,7 +801,7 @@ export default function DirectEpubReader({ url, title, bookId }: DirectEpubReade
       setAiContext(context)
       setIsAIPanelOpen(true)
       
-      // 8. 自动重置状态（准备下一次选词）
+      // 9. 自动重置状态（准备下一次选词）
       setTimeout(() => {
         selectionStateRef.current = 'IDLE'
         firstClickInfoRef.current = null
