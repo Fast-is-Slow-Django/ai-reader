@@ -26,6 +26,8 @@ export default function DirectEpubReader({ url, title, bookId }: DirectEpubReade
   const [error, setError] = useState<string | null>(null)
   const [progress, setProgress] = useState(0)
   const [currentChapter, setCurrentChapter] = useState('加载中...')
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(0)
 
   // 设置面板
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
@@ -269,6 +271,13 @@ export default function DirectEpubReader({ url, title, bookId }: DirectEpubReade
           if (location.start) {
             const percent = Math.round((location.start.percentage || 0) * 100)
             setProgress(percent)
+
+            // 更新页码
+            const pageInfo = location.start.displayed
+            if (pageInfo) {
+              setCurrentPage(pageInfo.page || 1)
+              setTotalPages(pageInfo.total || 0)
+            }
 
             // 更新章节名
             book.loaded.navigation.then((navigation: any) => {
@@ -910,6 +919,13 @@ export default function DirectEpubReader({ url, title, bookId }: DirectEpubReade
       <main className="flex-1 relative overflow-hidden">
         {/* Viewer 容器始终存在 */}
         <div ref={viewerRef} className="w-full h-full" />
+        
+        {/* 页码显示 - 右下角 */}
+        {!loading && !error && totalPages > 0 && (
+          <div className="absolute bottom-4 right-4 px-3 py-1.5 bg-black/60 text-white rounded-md text-xs font-medium pointer-events-none z-50">
+            {currentPage} / {totalPages}
+          </div>
+        )}
         
         {/* 加载遮罩 */}
         {loading && (
