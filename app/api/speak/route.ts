@@ -47,7 +47,14 @@ export async function POST(req: Request) {
             }]
           }],
           generationConfig: {
-            responseModalities: ['AUDIO']
+            responseModalities: ['AUDIO'],
+            speechConfig: {
+              voiceConfig: {
+                prebuiltVoiceConfig: {
+                  voiceName: 'Kore'  // 英语女声
+                }
+              }
+            }
           }
         })
       }
