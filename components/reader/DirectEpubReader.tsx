@@ -941,26 +941,32 @@ export default function DirectEpubReader({ url, title, bookId }: DirectEpubReade
             <button
               onClick={handlePrevPage}
               disabled={loading || !!error}
-              className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-md hover:shadow-lg hover:from-blue-600 hover:to-blue-700 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-sm flex items-center justify-center"
+              className="w-9 h-9 rounded-full bg-gray-900 text-white shadow-md hover:shadow-lg hover:bg-black active:scale-95 transition-all disabled:opacity-30 disabled:cursor-not-allowed disabled:shadow-sm flex items-center justify-center"
               title="上一页"
             >
               <ChevronLeft size={18} strokeWidth={2.5} />
             </button>
             
             {/* 章节和页码信息 */}
-            <div className="flex flex-col items-center min-w-[140px]">
-              <span className="text-[11px] text-gray-500 truncate max-w-[140px] mb-0.5">
+            <div className="flex flex-col items-center min-w-[160px]">
+              <span className="text-[11px] text-gray-500 truncate max-w-[160px] mb-0.5">
                 {currentChapter}
               </span>
-              <span className="text-[13px] font-semibold text-gray-700 tracking-tight">
-                {totalPages > 0 ? `${currentPage} / ${totalPages}` : '---'}
-              </span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[13px] font-semibold text-gray-700 tracking-tight">
+                  {totalPages > 0 ? `${currentPage}/${totalPages}` : '---'}
+                </span>
+                <span className="text-gray-400">·</span>
+                <span className="text-[13px] font-semibold text-gray-600">
+                  {progress}%
+                </span>
+              </div>
             </div>
             
             <button
               onClick={handleNextPage}
               disabled={loading || !!error}
-              className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-md hover:shadow-lg hover:from-blue-600 hover:to-blue-700 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-sm flex items-center justify-center"
+              className="w-9 h-9 rounded-full bg-gray-900 text-white shadow-md hover:shadow-lg hover:bg-black active:scale-95 transition-all disabled:opacity-30 disabled:cursor-not-allowed disabled:shadow-sm flex items-center justify-center"
               title="下一页"
             >
               <ChevronRight size={18} strokeWidth={2.5} />
