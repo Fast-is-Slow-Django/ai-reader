@@ -882,47 +882,16 @@ export default function DirectEpubReader({ url, title, bookId }: DirectEpubReade
 
   return (
     <div className="flex flex-col h-full bg-white">
-      {/* 顶部导航栏 */}
-      <header className="h-[50px] bg-white border-b border-gray-200 flex items-center justify-between px-4 flex-shrink-0">
-        <Link
-          href="/dashboard"
-          className="flex items-center gap-2 text-gray-700 hover:text-blue-600 transition-colors"
-        >
-          <ChevronLeft size={24} />
-          <span className="hidden sm:inline text-sm font-medium">返回书架</span>
-        </Link>
+      {/* 🔥 移除顶部导航栏 - 阅读区域占满屏幕 */}
 
-        <h1 className="flex-1 text-center font-semibold text-gray-900 truncate px-4 text-sm sm:text-base">
-          {title}
-        </h1>
-
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setIsVocabularyListOpen(true)}
-            className="text-gray-700 hover:text-purple-600 transition-colors"
-            title="词汇列表"
-          >
-            <BookMarked size={24} />
-          </button>
-
-          <button
-            onClick={() => setIsSettingsOpen(true)}
-            className="text-gray-700 hover:text-blue-600 transition-colors"
-            title="阅读设置"
-          >
-            <Settings size={24} />
-          </button>
-        </div>
-      </header>
-
-      {/* 阅读器主体 */}
+      {/* 阅读器主体 - 现在占据更大空间 */}
       <main className="flex-1 relative overflow-hidden">
         {/* Viewer 容器始终存在 */}
         <div ref={viewerRef} className="w-full h-full" />
         
-        {/* 页码显示 - 右下角 */}
+        {/* 页码显示 - 右下角，避开底部工具栏 */}
         {!loading && !error && totalPages > 0 && (
-          <div className="absolute bottom-4 right-4 px-3 py-1.5 bg-black/60 text-white rounded-md text-xs font-medium pointer-events-none z-50">
+          <div className="absolute bottom-24 right-4 px-3 py-1.5 bg-black/60 text-white rounded-md text-xs font-medium pointer-events-none z-50">
             {currentPage} / {totalPages}
           </div>
         )}
@@ -951,30 +920,71 @@ export default function DirectEpubReader({ url, title, bookId }: DirectEpubReade
         )}
       </main>
 
-      {/* 底部工具栏 */}
-      <footer className="h-[60px] bg-white border-t border-gray-200 flex items-center justify-between px-4 flex-shrink-0">
-        <button
-          onClick={handlePrevPage}
-          disabled={loading || !!error}
-          className="flex items-center gap-1 px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800 transition-colors font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          <ChevronLeft size={18} />
-          <span className="hidden sm:inline">上一页</span>
-        </button>
-
-        <div className="flex flex-col items-center">
-          <span className="text-xs text-gray-500 truncate max-w-[150px]">{currentChapter}</span>
-          <span className="text-xs font-medium text-gray-700">{progress}%</span>
+      {/* 🆕 新的底部工具栏 - 整合所有功能 */}
+      <footer className="bg-white border-t border-gray-200 flex-shrink-0 shadow-lg">
+        {/* 第一行：书名 + 进度 */}
+        <div className="flex items-center justify-between px-4 py-2 border-b border-gray-100">
+          <h1 className="text-xs font-medium text-gray-600 truncate flex-1 mr-2">
+            {title}
+          </h1>
+          <span className="text-xs text-gray-500 whitespace-nowrap">{progress}%</span>
         </div>
-
-        <button
-          onClick={handleNextPage}
-          disabled={loading || !!error}
-          className="flex items-center gap-1 px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800 transition-colors font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          <span className="hidden sm:inline">下一页</span>
-          <ChevronRight size={18} />
-        </button>
+        
+        {/* 第二行：所有控制按钮 */}
+        <div className="flex items-center justify-between px-4 py-3">
+          {/* 左侧：返回书架 */}
+          <Link
+            href="/dashboard"
+            className="text-gray-600 hover:text-blue-600 transition-colors p-2"
+            title="返回书架"
+          >
+            <ChevronLeft size={22} />
+          </Link>
+          
+          {/* 中间：翻页控制 */}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handlePrevPage}
+              disabled={loading || !!error}
+              className="p-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              title="上一页"
+            >
+              <ChevronLeft size={20} />
+            </button>
+            
+            <span className="text-xs text-gray-500 max-w-[120px] truncate text-center">
+              {currentChapter}
+            </span>
+            
+            <button
+              onClick={handleNextPage}
+              disabled={loading || !!error}
+              className="p-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              title="下一页"
+            >
+              <ChevronRight size={20} />
+            </button>
+          </div>
+          
+          {/* 右侧：词汇 + 设置 */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsVocabularyListOpen(true)}
+              className="text-gray-600 hover:text-purple-600 transition-colors p-2"
+              title="词汇列表"
+            >
+              <BookMarked size={22} />
+            </button>
+            
+            <button
+              onClick={() => setIsSettingsOpen(true)}
+              className="text-gray-600 hover:text-blue-600 transition-colors p-2"
+              title="阅读设置"
+            >
+              <Settings size={22} />
+            </button>
+          </div>
+        </div>
       </footer>
 
       {/* 设置面板 */}
