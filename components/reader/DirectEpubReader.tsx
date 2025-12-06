@@ -41,10 +41,14 @@ export default function DirectEpubReader({ url, title, bookId }: DirectEpubReade
   
   // 悬浮按钮的位置和大小
   const [buttonPosition, setButtonPosition] = useState({ x: 0, y: 0 })
-  const [buttonSize, setButtonSize] = useState(56) // 默认 56px (14 * 4)
+  const [buttonSizePercent, setButtonSizePercent] = useState(50) // 0-100，默认50
+  const [buttonOpacity, setButtonOpacity] = useState(70) // 0-100，默认70%
   const [isDragging, setIsDragging] = useState(false)
   const dragStartPos = useRef({ x: 0, y: 0 })
   const buttonRef = useRef<HTMLButtonElement>(null)
+  
+  // 将百分比转换为实际像素大小 (44px - 88px)
+  const buttonSize = Math.round(44 + (buttonSizePercent / 100) * 44)
 
   // AI 面板
   const [isAIPanelOpen, setIsAIPanelOpen] = useState(false)
@@ -1016,13 +1020,9 @@ export default function DirectEpubReader({ url, title, bookId }: DirectEpubReade
     }
   }, [isDragging, buttonSize])
 
-  // 双击切换按钮大小
+  // 双击切换按钮大小（现在通过设置面板调整，移除双击功能）
   const handleButtonDoubleClick = () => {
-    setButtonSize(prev => {
-      if (prev === 56) return 72 // 大号
-      if (prev === 72) return 44 // 小号
-      return 56 // 默认
-    })
+    // 不再需要双击功能，在设置面板中调整
   }
 
   /**
@@ -1072,11 +1072,10 @@ export default function DirectEpubReader({ url, title, bookId }: DirectEpubReade
         )}
       </main>
 
-      {/* 悬浮控制按钮 - 可拖拽、半透明、可调整大小 */}
+      {/* 悬浮控制按钮 - 可拖拽、可调整透明度和大小 */}
       <button
         ref={buttonRef}
         onClick={() => !isDragging && setIsControlPanelOpen(!isControlPanelOpen)}
-        onDoubleClick={handleButtonDoubleClick}
         onMouseDown={handleButtonMouseDown}
         onTouchStart={handleButtonTouchStart}
         onTouchMove={handleButtonTouchMove}
@@ -1089,9 +1088,10 @@ export default function DirectEpubReader({ url, title, bookId }: DirectEpubReade
           left: buttonPosition.x > 0 ? `${buttonPosition.x}px` : 'auto',
           top: buttonPosition.y > 0 ? `${buttonPosition.y}px` : 'auto',
           cursor: isDragging ? 'grabbing' : 'grab',
+          backgroundColor: `rgba(17, 24, 39, ${buttonOpacity / 100})`, // 使用动态透明度
         }}
-        className="fixed bg-gray-900/70 text-white rounded-full shadow-lg hover:shadow-xl hover:bg-gray-900/90 active:scale-95 transition-all flex items-center justify-center z-40 backdrop-blur-sm touch-none select-none"
-        title={isControlPanelOpen ? "关闭控制面板" : "打开控制面板 (拖拽移动，双击调整大小)"}
+        className="fixed text-white rounded-full shadow-lg hover:shadow-xl active:scale-95 transition-all flex items-center justify-center z-40 backdrop-blur-sm touch-none select-none"
+        title={isControlPanelOpen ? "关闭控制面板" : "打开控制面板 (拖拽移动)"}
       >
         {isControlPanelOpen ? <X size={buttonSize * 0.43} /> : <Menu size={buttonSize * 0.43} />}
       </button>
@@ -1190,6 +1190,10 @@ export default function DirectEpubReader({ url, title, bookId }: DirectEpubReade
         chapters={chapters}
         currentChapter={currentChapterIndex}
         onChapterChange={handleChapterChange}
+        buttonSize={buttonSizePercent}
+        onButtonSizeChange={setButtonSizePercent}
+        buttonOpacity={buttonOpacity}
+        onButtonOpacityChange={setButtonOpacity}
       />
 
       {/* AI 面板 */}

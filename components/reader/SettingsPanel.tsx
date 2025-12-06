@@ -1,6 +1,6 @@
 'use client'
 
-import { X, Type, Sun, Moon, List } from 'lucide-react'
+import { X, Type, Sun, Moon, List, Move, Droplet } from 'lucide-react'
 
 /**
  * 阅读器设置面板组件
@@ -31,6 +31,10 @@ export default function SettingsPanel({
   chapters = [],
   currentChapter = 0,
   onChapterChange,
+  buttonSize = 50,
+  onButtonSizeChange,
+  buttonOpacity = 70,
+  onButtonOpacityChange,
 }: {
   isOpen: boolean
   onClose: () => void
@@ -41,6 +45,10 @@ export default function SettingsPanel({
   chapters?: Array<{ label: string; href: string }>
   currentChapter?: number
   onChapterChange?: (index: number) => void
+  buttonSize?: number
+  onButtonSizeChange?: (size: number) => void
+  buttonOpacity?: number
+  onButtonOpacityChange?: (opacity: number) => void
 }) {
   if (!isOpen) return null
 
@@ -104,6 +112,70 @@ export default function SettingsPanel({
               </div>
             </div>
           </div>
+
+          {/* 按钮大小调整 */}
+          {onButtonSizeChange && (
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Move size={20} className="text-gray-600" />
+                  <h3 className="font-medium text-gray-900">按钮大小</h3>
+                </div>
+                <span className="text-sm font-medium text-blue-600">{buttonSize}</span>
+              </div>
+              
+              <div className="space-y-2">
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={buttonSize}
+                  onChange={(e) => onButtonSizeChange(Number(e.target.value))}
+                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                  style={{
+                    background: `linear-gradient(to right, #2563eb 0%, #2563eb ${buttonSize}%, #e5e7eb ${buttonSize}%, #e5e7eb 100%)`
+                  }}
+                />
+                <div className="flex justify-between text-xs text-gray-500">
+                  <span>最小</span>
+                  <span>中等</span>
+                  <span>最大</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 按钮透明度调整 */}
+          {onButtonOpacityChange && (
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Droplet size={20} className="text-gray-600" />
+                  <h3 className="font-medium text-gray-900">按钮透明度</h3>
+                </div>
+                <span className="text-sm font-medium text-blue-600">{buttonOpacity}%</span>
+              </div>
+              
+              <div className="space-y-2">
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={buttonOpacity}
+                  onChange={(e) => onButtonOpacityChange(Number(e.target.value))}
+                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                  style={{
+                    background: `linear-gradient(to right, #2563eb 0%, #2563eb ${buttonOpacity}%, #e5e7eb ${buttonOpacity}%, #e5e7eb 100%)`
+                  }}
+                />
+                <div className="flex justify-between text-xs text-gray-500">
+                  <span>透明</span>
+                  <span>半透明</span>
+                  <span>不透明</span>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* 主题切换 */}
           <div>
