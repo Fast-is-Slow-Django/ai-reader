@@ -40,6 +40,7 @@ export default function DirectEpubReader({ url, title, bookId }: DirectEpubReade
   const [isAIPanelOpen, setIsAIPanelOpen] = useState(false)
   const [aiSelectedText, setAiSelectedText] = useState('')
   const [aiContext, setAiContext] = useState('')
+  const isAIPanelOpenRef = useRef(false)
 
   // 词汇列表面板
   const [isVocabularyListOpen, setIsVocabularyListOpen] = useState(false)
@@ -68,11 +69,21 @@ export default function DirectEpubReader({ url, title, bookId }: DirectEpubReade
   const fontSizeRef = useRef(fontSize)
   const themeRef = useRef(theme)
   
+  // 滑动手势状态
+  const touchStateRef = useRef({
+    startX: 0,
+    startY: 0,
+    startTime: 0,
+    isSwiping: false
+  })
+  const swipeCleanupRef = useRef<(() => void) | null>(null)
+  
   // 同步 ref 和 state
   useEffect(() => {
     fontSizeRef.current = fontSize
     themeRef.current = theme
-  }, [fontSize, theme])
+    isAIPanelOpenRef.current = isAIPanelOpen
+  }, [fontSize, theme, isAIPanelOpen])
 
   /**
    * 初始化 EPUB
@@ -160,6 +171,83 @@ export default function DirectEpubReader({ url, title, bookId }: DirectEpubReade
 
         renditionRef.current = rendition
         console.log('✅ Rendition 已创建')
+
+        // 4.5. 设置滑动翻页手势
+        const setupSwipeGesture = () => {
+          const viewer = viewerRef.current
+          if (!viewer) return
+
+          const handleTouchStart = (e: TouchEvent) => {
+            // 如果AI面板打开，不处理滑动
+            if (isAIPanelOpenRef.current) return
+            
+            const touch = e.touches[0]
+            touchStateRef.current = {
+              startX: touch.clientX,
+              startY: touch.clientY,
+              startTime: Date.now(),
+              isSwiping: false
+            }
+          }
+
+          const handleTouchEnd = (e: TouchEvent) => {
+            // 如果AI面板打开，不处理滑动
+            if (isAIPanelOpenRef.current) return
+            
+            const touch = e.changedTouches[0]
+            const endX = touch.clientX
+            const endY = touch.clientY
+            
+            const deltaX = endX - touchStateRef.current.startX
+            const deltaY = endY - touchStateRef.current.startY
+            const absDeltaX = Math.abs(deltaX)
+            const absDeltaY = Math.abs(deltaY)
+            
+            // 判断是否为有效滑动
+            const CLICK_THRESHOLD = 10  // 小于这个距离算点击
+            const SWIPE_THRESHOLD = 50   // 大于这个距离算滑动
+            
+            // 如果移动距离太小，算作点击，不处理
+            if (absDeltaX < CLICK_THRESHOLD && absDeltaY < CLICK_THRESHOLD) {
+              return
+            }
+            
+            // 如果纵向移动大于横向，可能是垂直滚动，不处理
+            if (absDeltaY > absDeltaX) {
+              return
+            }
+            
+            // 如果横向移动距离足够，触发翻页
+            if (absDeltaX > SWIPE_THRESHOLD) {
+              if (deltaX > 0) {
+                // 向右滑 → 上一页
+                console.log('👉 向右滑动，上一页')
+                renditionRef.current?.prev()
+              } else {
+                // 向左滑 → 下一页
+                console.log('👈 向左滑动，下一页')
+                renditionRef.current?.next()
+              }
+            }
+            
+            // 重置状态
+            touchStateRef.current.isSwiping = false
+          }
+
+          viewer.addEventListener('touchstart', handleTouchStart, { passive: true })
+          viewer.addEventListener('touchend', handleTouchEnd, { passive: true })
+          
+          console.log('✅ 滑动翻页手势已启用')
+          
+          // 返回清理函数
+          return () => {
+            viewer.removeEventListener('touchstart', handleTouchStart)
+            viewer.removeEventListener('touchend', handleTouchEnd)
+          }
+        }
+        
+        // 保存清理函数
+        swipeCleanupRef.current = setupSwipeGesture() || null
 
         // 5. 显示第一页或加载的位置
         console.log('📖 显示第一页...')
@@ -357,6 +445,14 @@ export default function DirectEpubReader({ url, title, bookId }: DirectEpubReade
     return () => {
       cancelled = true
       console.log('🧹🧹🧹 ========== 开始清理 EPUB 资源 ==========')
+      
+      // 清理滑动监听
+      if (swipeCleanupRef.current) {
+        swipeCleanupRef.current()
+        swipeCleanupRef.current = null
+        console.log('✅ 滑动监听已清理')
+      }
+      
       if (renditionRef.current) {
         try {
           renditionRef.current.destroy()
