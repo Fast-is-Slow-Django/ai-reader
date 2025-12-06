@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { ChevronLeft, Settings, ChevronRight, Loader2, BookMarked } from 'lucide-react'
+import { ChevronLeft, Settings, ChevronRight, Loader2, BookMarked, Menu, X } from 'lucide-react'
 import Link from 'next/link'
 import ePub, { Book, Rendition } from 'epubjs'
 import SettingsPanel from './SettingsPanel'
@@ -35,6 +35,9 @@ export default function DirectEpubReader({ url, title, bookId }: DirectEpubReade
   const [theme, setTheme] = useState<'light' | 'dark'>('light')
   const [chapters, setChapters] = useState<Array<{ label: string; href: string }>>([])
   const [currentChapterIndex, setCurrentChapterIndex] = useState(0)
+  
+  // 控制面板显示状态
+  const [isControlPanelOpen, setIsControlPanelOpen] = useState(false)
 
   // AI 面板
   const [isAIPanelOpen, setIsAIPanelOpen] = useState(false)
@@ -980,8 +983,21 @@ export default function DirectEpubReader({ url, title, bookId }: DirectEpubReade
         )}
       </main>
 
-      {/* 🍎 Apple风格底部工具栏 */}
-      <footer className="bg-white/95 backdrop-blur-md border-t border-gray-200/80 flex-shrink-0 shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
+      {/* 悬浮控制按钮 */}
+      <button
+        onClick={() => setIsControlPanelOpen(!isControlPanelOpen)}
+        className="fixed bottom-6 right-6 w-14 h-14 bg-gray-900 text-white rounded-full shadow-lg hover:shadow-xl hover:bg-black active:scale-95 transition-all flex items-center justify-center z-40"
+        title={isControlPanelOpen ? "关闭控制面板" : "打开控制面板"}
+      >
+        {isControlPanelOpen ? <X size={24} /> : <Menu size={24} />}
+      </button>
+
+      {/* 可展开的控制面板 */}
+      <div
+        className={`fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-gray-200/80 shadow-[0_-2px_10px_rgba(0,0,0,0.05)] transition-transform duration-300 z-30 ${
+          isControlPanelOpen ? 'translate-y-0' : 'translate-y-full'
+        }`}
+      >
         {/* 第一行：书名 + 进度 */}
         <div className="flex items-center justify-between px-5 py-2.5 border-b border-gray-100/60">
           <h1 className="text-[13px] font-medium text-gray-700 truncate flex-1 mr-3 tracking-tight">
@@ -1001,7 +1017,7 @@ export default function DirectEpubReader({ url, title, bookId }: DirectEpubReade
             <ChevronLeft size={20} strokeWidth={2.5} />
           </Link>
           
-          {/* 中间：翻页区域（加大间距） */}
+          {/* 中间：翻页区域 */}
           <div className="flex items-center gap-6">
             <button
               onClick={handlePrevPage}
@@ -1057,7 +1073,7 @@ export default function DirectEpubReader({ url, title, bookId }: DirectEpubReade
             </button>
           </div>
         </div>
-      </footer>
+      </div>
 
       {/* 设置面板 */}
       <SettingsPanel
