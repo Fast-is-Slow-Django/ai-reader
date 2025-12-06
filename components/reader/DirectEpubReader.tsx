@@ -349,6 +349,75 @@ export default function DirectEpubReader({ url, title, bookId }: DirectEpubReade
           
           console.log('🧪 所有测试监听器已设置完成！')
           console.log('🧪 请在书籍内容上：1.点击 2.滑动 3.长按')
+          
+          // ⚡ 重要：立即添加真正的滑动逻辑
+          if (viewer) {
+            const iframe2 = viewer.querySelector('iframe') as HTMLIFrameElement
+            if (iframe2 && iframe2.contentDocument) {
+              const iframeDoc = iframe2.contentDocument
+              console.log('⚡ 开始添加实际的滑动翻页逻辑...')
+            
+            const handleTouchStart = (e: TouchEvent) => {
+              if (isAIPanelOpenRef.current) return
+              
+              const touch = e.touches[0]
+              touchStateRef.current = {
+                startX: touch.clientX,
+                startY: touch.clientY,
+                startTime: Date.now(),
+                isSwiping: false
+              }
+              console.log('👆 [实际] touchStart:', { x: touch.clientX, y: touch.clientY })
+            }
+            
+            const handleTouchEnd = (e: TouchEvent) => {
+              if (isAIPanelOpenRef.current) return
+              
+              const touch = e.changedTouches[0]
+              const endX = touch.clientX
+              const endY = touch.clientY
+              
+              const deltaX = endX - touchStateRef.current.startX
+              const deltaY = endY - touchStateRef.current.startY
+              const absDeltaX = Math.abs(deltaX)
+              const absDeltaY = Math.abs(deltaY)
+              
+              console.log('👇 [实际] touchEnd:', { deltaX, deltaY, absDeltaX, absDeltaY })
+              
+              const CLICK_THRESHOLD = 10
+              const SWIPE_THRESHOLD = 50
+              
+              if (absDeltaX < CLICK_THRESHOLD && absDeltaY < CLICK_THRESHOLD) {
+                console.log('❌ 判定为点击，不翻页')
+                return
+              }
+              
+              if (absDeltaY > absDeltaX) {
+                console.log('❌ 纵向移动，不翻页')
+                return
+              }
+              
+              if (absDeltaX > SWIPE_THRESHOLD) {
+                if (deltaX > 0) {
+                  console.log('👉 向右滑动 → 触发上一页！')
+                  handlePrevPageRef.current?.()
+                } else {
+                  console.log('👈 向左滑动 → 触发下一页！')
+                  handleNextPageRef.current?.()
+                }
+              } else {
+                console.log('❌ 移动距离不足:', absDeltaX)
+              }
+              
+              touchStateRef.current.isSwiping = false
+            }
+            
+              iframeDoc.addEventListener('touchstart', handleTouchStart, { passive: true })
+              iframeDoc.addEventListener('touchend', handleTouchEnd, { passive: true })
+              
+              console.log('✅ 实际的滑动翻页逻辑已添加！')
+            }
+          }
         }, 500)
         
         // 5.5. 监听首次渲染完成，设置滑动手势
