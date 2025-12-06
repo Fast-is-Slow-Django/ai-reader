@@ -76,7 +76,6 @@ export default function DirectEpubReader({ url, title, bookId }: DirectEpubReade
     startTime: 0,
     isSwiping: false
   })
-  const swipeCleanupRef = useRef<(() => void) | null>(null)
   
   // 保存翻页函数引用（避免闭包问题）
   const handlePrevPageRef = useRef<(() => void) | null>(null)
@@ -272,273 +271,75 @@ export default function DirectEpubReader({ url, title, bookId }: DirectEpubReade
           await rendition.display()
         }
 
-        // 5.5. 事件触发测试 - 延迟500ms添加，确保DOM完全加载
+        // 5.5. 设置滑动翻页手势 - 延迟500ms添加，确保DOM完全加载
         setTimeout(() => {
-          console.log('🧪 开始添加事件测试监听器...')
-          
           const viewer = viewerRef.current
-          if (viewer) {
-            console.log('✅ 找到 viewer 元素')
-            
-            // 测试1: Pointer Events (外层容器)
-            viewer.addEventListener('pointerdown', () => {
-              console.log('✅ 测试1: Pointer Down 在外层容器被触发！')
-            }, { passive: false })
-            
-            // 测试2: Touch Events (外层容器)
-            viewer.addEventListener('touchstart', () => {
-              console.log('✅ 测试2: Touch Start 在外层容器被触发！')
-            }, { passive: false })
-            
-            // 测试3: Click (外层容器)
-            viewer.addEventListener('click', () => {
-              console.log('✅ 测试3: Click 在外层容器被触发！')
-            })
-          } else {
-            console.warn('❌ viewer 不存在')
+          if (!viewer) {
+            console.warn('⚠️ Viewer 不存在，无法设置滑动翻页')
+            return
           }
           
-          // 测试4: Touch Events (window 级别)
-          window.addEventListener('touchstart', () => {
-            console.log('✅ 测试4: Touch Start 在 Window 被触发！')
-          }, { passive: false })
+          const iframe = viewer.querySelector('iframe') as HTMLIFrameElement
+          if (!iframe || !iframe.contentDocument) {
+            console.warn('⚠️ iframe 或 contentDocument 不存在，无法设置滑动翻页')
+            return
+          }
           
-          // 测试5: Pointer Events (window 级别)
-          window.addEventListener('pointerdown', () => {
-            console.log('✅ 测试5: Pointer Down 在 Window 被触发！')
-          }, { passive: false })
+          const iframeDoc = iframe.contentDocument
+          console.log('📱 开始设置滑动翻页手势...')
           
-          // 测试6: Click (window 级别)
-          window.addEventListener('click', () => {
-            console.log('✅ 测试6: Click 在 Window 被触发！')
-          })
+          const handleTouchStart = (e: TouchEvent) => {
+            if (isAIPanelOpenRef.current) return
+            
+            const touch = e.touches[0]
+            touchStateRef.current = {
+              startX: touch.clientX,
+              startY: touch.clientY,
+              startTime: Date.now(),
+              isSwiping: false
+            }
+          }
           
-          // 测试 iframe
-          if (viewer) {
-            const iframe = viewer.querySelector('iframe') as HTMLIFrameElement
-            if (iframe) {
-              console.log('✅ 找到 iframe')
-              
-              if (iframe.contentDocument) {
-                console.log('✅ iframe.contentDocument 可访问')
-                const iframeDoc = iframe.contentDocument
-                
-                // 测试7: Touch Events (iframe 内部)
-                iframeDoc.addEventListener('touchstart', () => {
-                  console.log('✅ 测试7: Touch Start 在 iframe 内部被触发！')
-                }, { passive: false })
-                
-                // 测试8: Pointer Events (iframe 内部)
-                iframeDoc.addEventListener('pointerdown', () => {
-                  console.log('✅ 测试8: Pointer Down 在 iframe 内部被触发！')
-                }, { passive: false })
-                
-                // 测试9: Click (iframe 内部)
-                iframeDoc.addEventListener('click', () => {
-                  console.log('✅ 测试9: Click 在 iframe 内部被触发！')
-                })
-                
-                console.log('✅ iframe 内部测试监听器已设置')
+          const handleTouchEnd = (e: TouchEvent) => {
+            if (isAIPanelOpenRef.current) return
+            
+            const touch = e.changedTouches[0]
+            const endX = touch.clientX
+            const endY = touch.clientY
+            
+            const deltaX = endX - touchStateRef.current.startX
+            const deltaY = endY - touchStateRef.current.startY
+            const absDeltaX = Math.abs(deltaX)
+            const absDeltaY = Math.abs(deltaY)
+            
+            const CLICK_THRESHOLD = 10
+            const SWIPE_THRESHOLD = 50
+            
+            if (absDeltaX < CLICK_THRESHOLD && absDeltaY < CLICK_THRESHOLD) {
+              return
+            }
+            
+            if (absDeltaY > absDeltaX) {
+              return
+            }
+            
+            if (absDeltaX > SWIPE_THRESHOLD) {
+              if (deltaX > 0) {
+                handlePrevPageRef.current?.()
               } else {
-                console.warn('❌ iframe.contentDocument 不可访问')
+                handleNextPageRef.current?.()
               }
-            } else {
-              console.warn('❌ 找不到 iframe')
             }
+            
+            touchStateRef.current.isSwiping = false
           }
           
-          console.log('🧪 所有测试监听器已设置完成！')
-          console.log('🧪 请在书籍内容上：1.点击 2.滑动 3.长按')
+          iframeDoc.addEventListener('touchstart', handleTouchStart, { passive: true })
+          iframeDoc.addEventListener('touchend', handleTouchEnd, { passive: true })
           
-          // ⚡ 重要：立即添加真正的滑动逻辑
-          if (viewer) {
-            const iframe2 = viewer.querySelector('iframe') as HTMLIFrameElement
-            if (iframe2 && iframe2.contentDocument) {
-              const iframeDoc = iframe2.contentDocument
-              console.log('⚡ 开始添加实际的滑动翻页逻辑...')
-            
-            const handleTouchStart = (e: TouchEvent) => {
-              if (isAIPanelOpenRef.current) return
-              
-              const touch = e.touches[0]
-              touchStateRef.current = {
-                startX: touch.clientX,
-                startY: touch.clientY,
-                startTime: Date.now(),
-                isSwiping: false
-              }
-              console.log('👆 [实际] touchStart:', { x: touch.clientX, y: touch.clientY })
-            }
-            
-            const handleTouchEnd = (e: TouchEvent) => {
-              if (isAIPanelOpenRef.current) return
-              
-              const touch = e.changedTouches[0]
-              const endX = touch.clientX
-              const endY = touch.clientY
-              
-              const deltaX = endX - touchStateRef.current.startX
-              const deltaY = endY - touchStateRef.current.startY
-              const absDeltaX = Math.abs(deltaX)
-              const absDeltaY = Math.abs(deltaY)
-              
-              console.log('👇 [实际] touchEnd:', { deltaX, deltaY, absDeltaX, absDeltaY })
-              
-              const CLICK_THRESHOLD = 10
-              const SWIPE_THRESHOLD = 50
-              
-              if (absDeltaX < CLICK_THRESHOLD && absDeltaY < CLICK_THRESHOLD) {
-                console.log('❌ 判定为点击，不翻页')
-                return
-              }
-              
-              if (absDeltaY > absDeltaX) {
-                console.log('❌ 纵向移动，不翻页')
-                return
-              }
-              
-              if (absDeltaX > SWIPE_THRESHOLD) {
-                if (deltaX > 0) {
-                  console.log('👉 向右滑动 → 触发上一页！')
-                  handlePrevPageRef.current?.()
-                } else {
-                  console.log('👈 向左滑动 → 触发下一页！')
-                  handleNextPageRef.current?.()
-                }
-              } else {
-                console.log('❌ 移动距离不足:', absDeltaX)
-              }
-              
-              touchStateRef.current.isSwiping = false
-            }
-            
-              iframeDoc.addEventListener('touchstart', handleTouchStart, { passive: true })
-              iframeDoc.addEventListener('touchend', handleTouchEnd, { passive: true })
-              
-              console.log('✅ 实际的滑动翻页逻辑已添加！')
-            }
-          }
+          console.log('✅ 滑动翻页手势已启用')
         }, 500)
         
-        // 5.5. 监听首次渲染完成，设置滑动手势
-        let swipeSetupDone = false
-        rendition.on('rendered', () => {
-          if (swipeSetupDone) return
-          swipeSetupDone = true
-          
-          console.log('📱 EPUB 首次渲染完成')
-          
-          const setupSwipeGesture = () => {
-            const viewer = viewerRef.current
-            if (!viewer) {
-              console.warn('⚠️ viewer 不存在，无法设置滑动')
-              return
-            }
-
-            // 获取 iframe (EPUB 内容在 iframe 中)
-            const iframe = viewer.querySelector('iframe') as HTMLIFrameElement
-            if (!iframe || !iframe.contentDocument) {
-              console.warn('⚠️ iframe 或 contentDocument 不存在')
-              return
-            }
-
-            const iframeDoc = iframe.contentDocument
-            console.log('📱 找到 iframe document')
-
-            const handleTouchStart = (e: TouchEvent) => {
-              // 如果AI面板打开，不处理滑动
-              if (isAIPanelOpenRef.current) {
-                console.log('⏸️ AI面板打开，跳过滑动检测')
-                return
-              }
-              
-              const touch = e.touches[0]
-              touchStateRef.current = {
-                startX: touch.clientX,
-                startY: touch.clientY,
-                startTime: Date.now(),
-                isSwiping: false
-              }
-              console.log('👆 touchStart:', { x: touch.clientX, y: touch.clientY })
-            }
-
-            const handleTouchEnd = (e: TouchEvent) => {
-              // 如果AI面板打开，不处理滑动
-              if (isAIPanelOpenRef.current) {
-                console.log('⏸️ AI面板打开，跳过滑动检测')
-                return
-              }
-              
-              const touch = e.changedTouches[0]
-              const endX = touch.clientX
-              const endY = touch.clientY
-              
-              const deltaX = endX - touchStateRef.current.startX
-              const deltaY = endY - touchStateRef.current.startY
-              const absDeltaX = Math.abs(deltaX)
-              const absDeltaY = Math.abs(deltaY)
-              
-              console.log('👇 touchEnd:', {
-                endX,
-                endY,
-                deltaX,
-                deltaY,
-                absDeltaX,
-                absDeltaY
-              })
-              
-              // 判断是否为有效滑动
-              const CLICK_THRESHOLD = 10  // 小于这个距离算点击
-              const SWIPE_THRESHOLD = 50   // 大于这个距离算滑动
-              
-              // 如果移动距离太小，算作点击，不处理
-              if (absDeltaX < CLICK_THRESHOLD && absDeltaY < CLICK_THRESHOLD) {
-                console.log('❌ 移动距离太小，判定为点击')
-                return
-              }
-              
-              // 如果纵向移动大于横向，可能是垂直滚动，不处理
-              if (absDeltaY > absDeltaX) {
-                console.log('❌ 纵向移动大于横向，可能是垂直滚动')
-                return
-              }
-              
-              // 如果横向移动距离足够，触发翻页
-              if (absDeltaX > SWIPE_THRESHOLD) {
-                if (deltaX > 0) {
-                  // 向右滑 → 上一页
-                  console.log('👉 向右滑动 → 触发上一页')
-                  handlePrevPageRef.current?.()
-                } else {
-                  // 向左滑 → 下一页
-                  console.log('👈 向左滑动 → 触发下一页')
-                  handleNextPageRef.current?.()
-                }
-              } else {
-                console.log('❌ 横向移动距离不足', { absDeltaX, threshold: SWIPE_THRESHOLD })
-              }
-              
-              // 重置状态
-              touchStateRef.current.isSwiping = false
-            }
-
-            iframeDoc.addEventListener('touchstart', handleTouchStart, { passive: true })
-            iframeDoc.addEventListener('touchend', handleTouchEnd, { passive: true })
-            
-            console.log('✅ 滑动翻页手势已启用（iframe内部）')
-            
-            // 返回清理函数
-            return () => {
-              iframeDoc.removeEventListener('touchstart', handleTouchStart)
-              iframeDoc.removeEventListener('touchend', handleTouchEnd)
-              console.log('🧹 滑动监听已清理')
-            }
-          }
-          
-          // 保存清理函数
-          swipeCleanupRef.current = setupSwipeGesture() || null
-        })
-
         // 6. 监听位置变化
         rendition.on('relocated', (location: any) => {
           console.log('🔔 relocated 事件触发，完整 location:', {
@@ -639,13 +440,6 @@ export default function DirectEpubReader({ url, title, bookId }: DirectEpubReade
     return () => {
       cancelled = true
       console.log('🧹🧹🧹 ========== 开始清理 EPUB 资源 ==========')
-      
-      // 清理滑动监听
-      if (swipeCleanupRef.current) {
-        swipeCleanupRef.current()
-        swipeCleanupRef.current = null
-        console.log('✅ 滑动监听已清理')
-      }
       
       if (renditionRef.current) {
         try {
