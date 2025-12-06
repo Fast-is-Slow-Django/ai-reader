@@ -179,7 +179,10 @@ export default function DirectEpubReader({ url, title, bookId }: DirectEpubReade
 
           const handleTouchStart = (e: TouchEvent) => {
             // 如果AI面板打开，不处理滑动
-            if (isAIPanelOpenRef.current) return
+            if (isAIPanelOpenRef.current) {
+              console.log('⏸️ AI面板打开，跳过滑动检测')
+              return
+            }
             
             const touch = e.touches[0]
             touchStateRef.current = {
@@ -188,11 +191,15 @@ export default function DirectEpubReader({ url, title, bookId }: DirectEpubReade
               startTime: Date.now(),
               isSwiping: false
             }
+            console.log('👆 touchStart:', { x: touch.clientX, y: touch.clientY })
           }
 
           const handleTouchEnd = (e: TouchEvent) => {
             // 如果AI面板打开，不处理滑动
-            if (isAIPanelOpenRef.current) return
+            if (isAIPanelOpenRef.current) {
+              console.log('⏸️ AI面板打开，跳过滑动检测')
+              return
+            }
             
             const touch = e.changedTouches[0]
             const endX = touch.clientX
@@ -203,17 +210,28 @@ export default function DirectEpubReader({ url, title, bookId }: DirectEpubReade
             const absDeltaX = Math.abs(deltaX)
             const absDeltaY = Math.abs(deltaY)
             
+            console.log('👇 touchEnd:', {
+              endX,
+              endY,
+              deltaX,
+              deltaY,
+              absDeltaX,
+              absDeltaY
+            })
+            
             // 判断是否为有效滑动
             const CLICK_THRESHOLD = 10  // 小于这个距离算点击
             const SWIPE_THRESHOLD = 50   // 大于这个距离算滑动
             
             // 如果移动距离太小，算作点击，不处理
             if (absDeltaX < CLICK_THRESHOLD && absDeltaY < CLICK_THRESHOLD) {
+              console.log('❌ 移动距离太小，判定为点击')
               return
             }
             
             // 如果纵向移动大于横向，可能是垂直滚动，不处理
             if (absDeltaY > absDeltaX) {
+              console.log('❌ 纵向移动大于横向，可能是垂直滚动')
               return
             }
             
@@ -221,13 +239,15 @@ export default function DirectEpubReader({ url, title, bookId }: DirectEpubReade
             if (absDeltaX > SWIPE_THRESHOLD) {
               if (deltaX > 0) {
                 // 向右滑 → 上一页
-                console.log('👉 向右滑动，上一页')
+                console.log('👉 向右滑动，上一页', { rendition: !!renditionRef.current })
                 renditionRef.current?.prev()
               } else {
                 // 向左滑 → 下一页
-                console.log('👈 向左滑动，下一页')
+                console.log('👈 向左滑动，下一页', { rendition: !!renditionRef.current })
                 renditionRef.current?.next()
               }
+            } else {
+              console.log('❌ 横向移动距离不足', { absDeltaX, threshold: SWIPE_THRESHOLD })
             }
             
             // 重置状态
