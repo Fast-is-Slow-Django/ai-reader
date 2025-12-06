@@ -950,10 +950,13 @@ export default function DirectEpubReader({ url, title, bookId }: DirectEpubReade
   // 悬浮按钮拖拽逻辑 - 触摸
   const handleButtonTouchStart = (e: React.TouchEvent) => {
     const touch = e.touches[0]
+    const rect = buttonRef.current?.getBoundingClientRect()
+    if (!rect) return
+    
     setIsDragging(true)
     dragStartPos.current = {
-      x: touch.clientX - buttonPosition.x,
-      y: touch.clientY - buttonPosition.y
+      x: touch.clientX - rect.left,
+      y: touch.clientY - rect.top
     }
   }
 
@@ -982,10 +985,13 @@ export default function DirectEpubReader({ url, title, bookId }: DirectEpubReade
   // 悬浮按钮拖拽逻辑 - 鼠标
   const handleButtonMouseDown = (e: React.MouseEvent) => {
     e.preventDefault()
+    const rect = buttonRef.current?.getBoundingClientRect()
+    if (!rect) return
+    
     setIsDragging(true)
     dragStartPos.current = {
-      x: e.clientX - buttonPosition.x,
-      y: e.clientY - buttonPosition.y
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top
     }
   }
 
@@ -1090,7 +1096,7 @@ export default function DirectEpubReader({ url, title, bookId }: DirectEpubReade
           cursor: isDragging ? 'grabbing' : 'grab',
           backgroundColor: `rgba(17, 24, 39, ${buttonOpacity / 100})`, // 使用动态透明度
         }}
-        className="fixed text-white rounded-full shadow-lg hover:shadow-xl active:scale-95 transition-all flex items-center justify-center z-40 backdrop-blur-sm touch-none select-none"
+        className="fixed text-white rounded-full shadow-lg hover:shadow-xl active:scale-95 transition-all flex items-center justify-center z-40 touch-none select-none"
         title={isControlPanelOpen ? "关闭控制面板" : "打开控制面板 (拖拽移动)"}
       >
         {isControlPanelOpen ? <X size={buttonSize * 0.43} /> : <Menu size={buttonSize * 0.43} />}
