@@ -78,6 +78,10 @@ export default function DirectEpubReader({ url, title, bookId }: DirectEpubReade
   })
   const swipeCleanupRef = useRef<(() => void) | null>(null)
   
+  // 保存翻页函数引用（避免闭包问题）
+  const handlePrevPageRef = useRef<(() => void) | null>(null)
+  const handleNextPageRef = useRef<(() => void) | null>(null)
+  
   // 同步 ref 和 state
   useEffect(() => {
     fontSizeRef.current = fontSize
@@ -355,12 +359,12 @@ export default function DirectEpubReader({ url, title, bookId }: DirectEpubReade
               if (absDeltaX > SWIPE_THRESHOLD) {
                 if (deltaX > 0) {
                   // 向右滑 → 上一页
-                  console.log('👉 向右滑动，上一页', { rendition: !!renditionRef.current })
-                  renditionRef.current?.prev()
+                  console.log('👉 向右滑动 → 触发上一页')
+                  handlePrevPageRef.current?.()
                 } else {
                   // 向左滑 → 下一页
-                  console.log('👈 向左滑动，下一页', { rendition: !!renditionRef.current })
-                  renditionRef.current?.next()
+                  console.log('👈 向左滑动 → 触发下一页')
+                  handleNextPageRef.current?.()
                 }
               } else {
                 console.log('❌ 横向移动距离不足', { absDeltaX, threshold: SWIPE_THRESHOLD })
@@ -964,9 +968,8 @@ export default function DirectEpubReader({ url, title, bookId }: DirectEpubReade
    * 翻页
    */
   const handlePrevPage = useCallback(() => {
-    console.log('⬅️ 点击上一页')
+    console.log('⬅️ 上一页')
     if (renditionRef.current) {
-      console.log('✅ Rendition 存在，调用 prev()')
       renditionRef.current.prev()
     } else {
       console.log('❌ Rendition 不存在')
@@ -974,14 +977,19 @@ export default function DirectEpubReader({ url, title, bookId }: DirectEpubReade
   }, [])
 
   const handleNextPage = useCallback(() => {
-    console.log('➡️ 点击下一页')
+    console.log('➡️ 下一页')
     if (renditionRef.current) {
-      console.log('✅ Rendition 存在，调用 next()')
       renditionRef.current.next()
     } else {
       console.log('❌ Rendition 不存在')
     }
   }, [])
+  
+  // 同步翻页函数到 ref
+  useEffect(() => {
+    handlePrevPageRef.current = handlePrevPage
+    handleNextPageRef.current = handleNextPage
+  }, [handlePrevPage, handleNextPage])
 
   /**
    * 章节切换
