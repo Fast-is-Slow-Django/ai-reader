@@ -770,7 +770,28 @@ export default function DirectEpubReader({ url, title, bookId }: DirectEpubReade
       // 1. 先获取第二次点击位置（此时高亮还在，DOM未变化）
       const endInfo = getClickPosition(event, true) // true = 扩展到单词结尾
       if (!endInfo) {
-        console.error('❌ 无法获取第二次点击位置')
+        console.error('❌ 无法获取第二次点击位置，取消选词')
+        // 清理第一次点击的高亮
+        if (tempHighlightOverlayRef.current) {
+          tempHighlightOverlayRef.current.remove()
+          tempHighlightOverlayRef.current = null
+        }
+        selectionStateRef.current = 'IDLE'
+        firstClickInfoRef.current = null
+        return
+      }
+      
+      // 检查是否点击在空白区域（没有实际文本）
+      const endText = endInfo.node.textContent?.substring(endInfo.offset, endInfo.offset + 10) || ''
+      if (endText.trim().length === 0) {
+        console.log('❌ 第二次点击在空白区域，取消选词')
+        // 清理第一次点击的高亮
+        if (tempHighlightOverlayRef.current) {
+          tempHighlightOverlayRef.current.remove()
+          tempHighlightOverlayRef.current = null
+        }
+        selectionStateRef.current = 'IDLE'
+        firstClickInfoRef.current = null
         return
       }
       
