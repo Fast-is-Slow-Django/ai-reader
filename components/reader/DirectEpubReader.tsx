@@ -38,6 +38,13 @@ export default function DirectEpubReader({ url, title, bookId }: DirectEpubReade
   
   // 控制面板显示状态
   const [isControlPanelOpen, setIsControlPanelOpen] = useState(false)
+  
+  // 悬浮按钮的位置和大小
+  const [buttonPosition, setButtonPosition] = useState({ x: 0, y: 0 })
+  const [buttonSize, setButtonSize] = useState(56) // 默认 56px (14 * 4)
+  const [isDragging, setIsDragging] = useState(false)
+  const dragStartPos = useRef({ x: 0, y: 0 })
+  const buttonRef = useRef<HTMLButtonElement>(null)
 
   // AI 面板
   const [isAIPanelOpen, setIsAIPanelOpen] = useState(false)
@@ -936,6 +943,88 @@ export default function DirectEpubReader({ url, title, bookId }: DirectEpubReade
     handleNextPageRef.current = handleNextPage
   }, [handlePrevPage, handleNextPage])
 
+  // 悬浮按钮拖拽逻辑 - 触摸
+  const handleButtonTouchStart = (e: React.TouchEvent) => {
+    const touch = e.touches[0]
+    setIsDragging(true)
+    dragStartPos.current = {
+      x: touch.clientX - buttonPosition.x,
+      y: touch.clientY - buttonPosition.y
+    }
+  }
+
+  const handleButtonTouchMove = (e: React.TouchEvent) => {
+    if (!isDragging) return
+    e.preventDefault()
+    
+    const touch = e.touches[0]
+    const newX = touch.clientX - dragStartPos.current.x
+    const newY = touch.clientY - dragStartPos.current.y
+    
+    // 限制在屏幕范围内
+    const maxX = window.innerWidth - buttonSize
+    const maxY = window.innerHeight - buttonSize
+    
+    setButtonPosition({
+      x: Math.max(0, Math.min(newX, maxX)),
+      y: Math.max(0, Math.min(newY, maxY))
+    })
+  }
+
+  const handleButtonTouchEnd = () => {
+    setIsDragging(false)
+  }
+
+  // 悬浮按钮拖拽逻辑 - 鼠标
+  const handleButtonMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault()
+    setIsDragging(true)
+    dragStartPos.current = {
+      x: e.clientX - buttonPosition.x,
+      y: e.clientY - buttonPosition.y
+    }
+  }
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDragging) return
+      
+      const newX = e.clientX - dragStartPos.current.x
+      const newY = e.clientY - dragStartPos.current.y
+      
+      const maxX = window.innerWidth - buttonSize
+      const maxY = window.innerHeight - buttonSize
+      
+      setButtonPosition({
+        x: Math.max(0, Math.min(newX, maxX)),
+        y: Math.max(0, Math.min(newY, maxY))
+      })
+    }
+
+    const handleMouseUp = () => {
+      setIsDragging(false)
+    }
+
+    if (isDragging) {
+      window.addEventListener('mousemove', handleMouseMove)
+      window.addEventListener('mouseup', handleMouseUp)
+    }
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove)
+      window.removeEventListener('mouseup', handleMouseUp)
+    }
+  }, [isDragging, buttonSize])
+
+  // 双击切换按钮大小
+  const handleButtonDoubleClick = () => {
+    setButtonSize(prev => {
+      if (prev === 56) return 72 // 大号
+      if (prev === 72) return 44 // 小号
+      return 56 // 默认
+    })
+  }
+
   /**
    * 章节切换
    */
@@ -983,13 +1072,28 @@ export default function DirectEpubReader({ url, title, bookId }: DirectEpubReade
         )}
       </main>
 
-      {/* 悬浮控制按钮 */}
+      {/* 悬浮控制按钮 - 可拖拽、半透明、可调整大小 */}
       <button
-        onClick={() => setIsControlPanelOpen(!isControlPanelOpen)}
-        className="fixed bottom-6 right-6 w-14 h-14 bg-gray-900 text-white rounded-full shadow-lg hover:shadow-xl hover:bg-black active:scale-95 transition-all flex items-center justify-center z-40"
-        title={isControlPanelOpen ? "关闭控制面板" : "打开控制面板"}
+        ref={buttonRef}
+        onClick={() => !isDragging && setIsControlPanelOpen(!isControlPanelOpen)}
+        onDoubleClick={handleButtonDoubleClick}
+        onMouseDown={handleButtonMouseDown}
+        onTouchStart={handleButtonTouchStart}
+        onTouchMove={handleButtonTouchMove}
+        onTouchEnd={handleButtonTouchEnd}
+        style={{
+          width: `${buttonSize}px`,
+          height: `${buttonSize}px`,
+          right: buttonPosition.x === 0 ? '24px' : 'auto',
+          bottom: buttonPosition.y === 0 ? '24px' : 'auto',
+          left: buttonPosition.x > 0 ? `${buttonPosition.x}px` : 'auto',
+          top: buttonPosition.y > 0 ? `${buttonPosition.y}px` : 'auto',
+          cursor: isDragging ? 'grabbing' : 'grab',
+        }}
+        className="fixed bg-gray-900/70 text-white rounded-full shadow-lg hover:shadow-xl hover:bg-gray-900/90 active:scale-95 transition-all flex items-center justify-center z-40 backdrop-blur-sm touch-none select-none"
+        title={isControlPanelOpen ? "关闭控制面板" : "打开控制面板 (拖拽移动，双击调整大小)"}
       >
-        {isControlPanelOpen ? <X size={24} /> : <Menu size={24} />}
+        {isControlPanelOpen ? <X size={buttonSize * 0.43} /> : <Menu size={buttonSize * 0.43} />}
       </button>
 
       {/* 可展开的控制面板 */}
