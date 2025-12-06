@@ -172,103 +172,6 @@ export default function DirectEpubReader({ url, title, bookId }: DirectEpubReade
         renditionRef.current = rendition
         console.log('✅ Rendition 已创建')
 
-        // 4.5. 设置滑动翻页手势
-        const setupSwipeGesture = () => {
-          const viewer = viewerRef.current
-          if (!viewer) return
-
-          const handleTouchStart = (e: TouchEvent) => {
-            // 如果AI面板打开，不处理滑动
-            if (isAIPanelOpenRef.current) {
-              console.log('⏸️ AI面板打开，跳过滑动检测')
-              return
-            }
-            
-            const touch = e.touches[0]
-            touchStateRef.current = {
-              startX: touch.clientX,
-              startY: touch.clientY,
-              startTime: Date.now(),
-              isSwiping: false
-            }
-            console.log('👆 touchStart:', { x: touch.clientX, y: touch.clientY })
-          }
-
-          const handleTouchEnd = (e: TouchEvent) => {
-            // 如果AI面板打开，不处理滑动
-            if (isAIPanelOpenRef.current) {
-              console.log('⏸️ AI面板打开，跳过滑动检测')
-              return
-            }
-            
-            const touch = e.changedTouches[0]
-            const endX = touch.clientX
-            const endY = touch.clientY
-            
-            const deltaX = endX - touchStateRef.current.startX
-            const deltaY = endY - touchStateRef.current.startY
-            const absDeltaX = Math.abs(deltaX)
-            const absDeltaY = Math.abs(deltaY)
-            
-            console.log('👇 touchEnd:', {
-              endX,
-              endY,
-              deltaX,
-              deltaY,
-              absDeltaX,
-              absDeltaY
-            })
-            
-            // 判断是否为有效滑动
-            const CLICK_THRESHOLD = 10  // 小于这个距离算点击
-            const SWIPE_THRESHOLD = 50   // 大于这个距离算滑动
-            
-            // 如果移动距离太小，算作点击，不处理
-            if (absDeltaX < CLICK_THRESHOLD && absDeltaY < CLICK_THRESHOLD) {
-              console.log('❌ 移动距离太小，判定为点击')
-              return
-            }
-            
-            // 如果纵向移动大于横向，可能是垂直滚动，不处理
-            if (absDeltaY > absDeltaX) {
-              console.log('❌ 纵向移动大于横向，可能是垂直滚动')
-              return
-            }
-            
-            // 如果横向移动距离足够，触发翻页
-            if (absDeltaX > SWIPE_THRESHOLD) {
-              if (deltaX > 0) {
-                // 向右滑 → 上一页
-                console.log('👉 向右滑动，上一页', { rendition: !!renditionRef.current })
-                renditionRef.current?.prev()
-              } else {
-                // 向左滑 → 下一页
-                console.log('👈 向左滑动，下一页', { rendition: !!renditionRef.current })
-                renditionRef.current?.next()
-              }
-            } else {
-              console.log('❌ 横向移动距离不足', { absDeltaX, threshold: SWIPE_THRESHOLD })
-            }
-            
-            // 重置状态
-            touchStateRef.current.isSwiping = false
-          }
-
-          viewer.addEventListener('touchstart', handleTouchStart, { passive: true })
-          viewer.addEventListener('touchend', handleTouchEnd, { passive: true })
-          
-          console.log('✅ 滑动翻页手势已启用')
-          
-          // 返回清理函数
-          return () => {
-            viewer.removeEventListener('touchstart', handleTouchStart)
-            viewer.removeEventListener('touchend', handleTouchEnd)
-          }
-        }
-        
-        // 保存清理函数
-        swipeCleanupRef.current = setupSwipeGesture() || null
-
         // 5. 显示第一页或加载的位置
         console.log('📖 显示第一页...')
         
@@ -364,6 +267,125 @@ export default function DirectEpubReader({ url, title, bookId }: DirectEpubReade
           isInitialJumpRef.current = true  // 标记正在初始跳转
           await rendition.display()
         }
+
+        // 5.5. 监听首次渲染完成，设置滑动手势
+        let swipeSetupDone = false
+        rendition.on('rendered', () => {
+          if (swipeSetupDone) return
+          swipeSetupDone = true
+          
+          console.log('📱 EPUB 首次渲染完成，设置滑动手势...')
+          
+          const setupSwipeGesture = () => {
+            const viewer = viewerRef.current
+            if (!viewer) {
+              console.warn('⚠️ viewer 不存在，无法设置滑动')
+              return
+            }
+
+            // 获取 iframe (EPUB 内容在 iframe 中)
+            const iframe = viewer.querySelector('iframe') as HTMLIFrameElement
+            if (!iframe || !iframe.contentDocument) {
+              console.warn('⚠️ iframe 或 contentDocument 不存在，无法设置滑动')
+              return
+            }
+
+            const iframeDoc = iframe.contentDocument
+            console.log('📱 找到 iframe document，准备添加滑动监听')
+
+            const handleTouchStart = (e: TouchEvent) => {
+              // 如果AI面板打开，不处理滑动
+              if (isAIPanelOpenRef.current) {
+                console.log('⏸️ AI面板打开，跳过滑动检测')
+                return
+              }
+              
+              const touch = e.touches[0]
+              touchStateRef.current = {
+                startX: touch.clientX,
+                startY: touch.clientY,
+                startTime: Date.now(),
+                isSwiping: false
+              }
+              console.log('👆 touchStart:', { x: touch.clientX, y: touch.clientY })
+            }
+
+            const handleTouchEnd = (e: TouchEvent) => {
+              // 如果AI面板打开，不处理滑动
+              if (isAIPanelOpenRef.current) {
+                console.log('⏸️ AI面板打开，跳过滑动检测')
+                return
+              }
+              
+              const touch = e.changedTouches[0]
+              const endX = touch.clientX
+              const endY = touch.clientY
+              
+              const deltaX = endX - touchStateRef.current.startX
+              const deltaY = endY - touchStateRef.current.startY
+              const absDeltaX = Math.abs(deltaX)
+              const absDeltaY = Math.abs(deltaY)
+              
+              console.log('👇 touchEnd:', {
+                endX,
+                endY,
+                deltaX,
+                deltaY,
+                absDeltaX,
+                absDeltaY
+              })
+              
+              // 判断是否为有效滑动
+              const CLICK_THRESHOLD = 10  // 小于这个距离算点击
+              const SWIPE_THRESHOLD = 50   // 大于这个距离算滑动
+              
+              // 如果移动距离太小，算作点击，不处理
+              if (absDeltaX < CLICK_THRESHOLD && absDeltaY < CLICK_THRESHOLD) {
+                console.log('❌ 移动距离太小，判定为点击')
+                return
+              }
+              
+              // 如果纵向移动大于横向，可能是垂直滚动，不处理
+              if (absDeltaY > absDeltaX) {
+                console.log('❌ 纵向移动大于横向，可能是垂直滚动')
+                return
+              }
+              
+              // 如果横向移动距离足够，触发翻页
+              if (absDeltaX > SWIPE_THRESHOLD) {
+                if (deltaX > 0) {
+                  // 向右滑 → 上一页
+                  console.log('👉 向右滑动，上一页', { rendition: !!renditionRef.current })
+                  renditionRef.current?.prev()
+                } else {
+                  // 向左滑 → 下一页
+                  console.log('👈 向左滑动，下一页', { rendition: !!renditionRef.current })
+                  renditionRef.current?.next()
+                }
+              } else {
+                console.log('❌ 横向移动距离不足', { absDeltaX, threshold: SWIPE_THRESHOLD })
+              }
+              
+              // 重置状态
+              touchStateRef.current.isSwiping = false
+            }
+
+            iframeDoc.addEventListener('touchstart', handleTouchStart, { passive: true })
+            iframeDoc.addEventListener('touchend', handleTouchEnd, { passive: true })
+            
+            console.log('✅ 滑动翻页手势已启用（iframe内部）')
+            
+            // 返回清理函数
+            return () => {
+              iframeDoc.removeEventListener('touchstart', handleTouchStart)
+              iframeDoc.removeEventListener('touchend', handleTouchEnd)
+              console.log('🧹 滑动监听已清理')
+            }
+          }
+          
+          // 保存清理函数
+          swipeCleanupRef.current = setupSwipeGesture() || null
+        })
 
         // 6. 监听位置变化
         rendition.on('relocated', (location: any) => {
