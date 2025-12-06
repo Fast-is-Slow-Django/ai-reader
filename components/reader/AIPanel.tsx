@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { X, Volume2, Loader2 } from 'lucide-react'
+import { useEffect, useState, useCallback } from 'react'
+import { X, Volume2, Loader2, RefreshCw } from 'lucide-react'
 
 /**
  * AI 解释面板 - i+1 纯英语教学模式
@@ -33,54 +33,62 @@ export default function AIPanel({
   const [error, setError] = useState<Error | null>(null)
 
   /**
+   * 调用 AI 生成解释（独立函数，可复用）
+   */
+  const fetchExplanation = useCallback(() => {
+    if (!selectedText) return
+
+    console.log('🤖 调用 AI 解释')
+    console.log('   目标词:', selectedText)
+    console.log('   上下文:', context.substring(0, 100))
+    
+    setIsLoading(true)
+    setError(null)
+    setCompletion('')
+
+    fetch('/api/explain', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        text: selectedText,
+        context,
+        bookId,
+      }),
+    })
+      .then(async (response) => {
+        console.log('📥 收到响应，状态:', response.status)
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`)
+        }
+        
+        const data = await response.json()
+        console.log('📊 解析的数据:', data)
+        console.log('📝 AI 返回的文本:', data.text)
+        console.log('💾 是否来自缓存:', data.fromCache ? '是' : '否')
+        
+        setCompletion(data.text)
+        setIsLoading(false)
+        console.log('✅ 已设置 completion')
+      })
+      .catch((err) => {
+        console.error('❌ AI 调用失败:', err)
+        setError(err)
+        setIsLoading(false)
+      })
+  }, [selectedText, context, bookId])
+
+  /**
    * 自动触发 AI 解释
    * 当面板打开且有选中文本时
    */
   useEffect(() => {
     if (isOpen && selectedText) {
-      console.log('🤖 自动触发 AI 解释')
-      console.log('   目标词:', selectedText)
-      console.log('   上下文:', context.substring(0, 100))
-      
-      // 每次打开都重置状态并调用 AI
-      setIsLoading(true)
-      setError(null)
-      setCompletion('')
-
-      fetch('/api/explain', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          text: selectedText,
-          context,
-          bookId,
-        }),
-      })
-        .then(async (response) => {
-          console.log('📥 收到响应，状态:', response.status)
-          
-          if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`)
-          }
-          
-          const data = await response.json()
-          console.log('📊 解析的数据:', data)
-          console.log('📝 AI 返回的文本:', data.text)
-          console.log('💾 是否来自缓存:', data.fromCache ? '是' : '否')
-          
-          setCompletion(data.text)
-          setIsLoading(false)
-          console.log('✅ 已设置 completion')
-        })
-        .catch((err) => {
-          console.error('❌ AI 调用失败:', err)
-          setError(err)
-          setIsLoading(false)
-        })
+      fetchExplanation()
     }
-  }, [isOpen, selectedText, context]) // 当文本或上下文变化时重新调用
+  }, [isOpen, selectedText, fetchExplanation])
 
   /**
    * 朗读单词 - 优先使用Gemini，降级到浏览器TTS
@@ -317,26 +325,40 @@ export default function AIPanel({
           <div>
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-medium text-gray-500">AI Explanation</h3>
-              {completion && (
+              <div className="flex items-center gap-2">
+                {/* 刷新按钮 */}
                 <button
-                  onClick={handleSpeakExplanation}
-                  disabled={!completion || isLoading}
-                  className={`
-                    p-1.5 rounded-full transition-all flex items-center gap-1.5 text-xs
-                    ${isSpeakingExplanation 
-                      ? 'bg-green-600 text-white' 
-                      : 'bg-gray-200 text-gray-700 hover:bg-green-100 hover:text-green-600'
-                    }
-                    disabled:opacity-50 disabled:cursor-not-allowed
-                  `}
-                  title={isSpeakingExplanation ? '停止朗读' : '朗读解释'}
+                  onClick={fetchExplanation}
+                  disabled={isLoading}
+                  className="p-1.5 rounded-full transition-all flex items-center gap-1.5 text-xs bg-gray-200 text-gray-700 hover:bg-blue-100 hover:text-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="重新生成解释"
                 >
-                  <Volume2 size={16} className={isSpeakingExplanation ? 'animate-pulse' : ''} />
-                  <span className="hidden sm:inline">
-                    {isSpeakingExplanation ? '停止' : '朗读'}
-                  </span>
+                  <RefreshCw size={16} className={isLoading ? 'animate-spin' : ''} />
+                  <span className="hidden sm:inline">刷新</span>
                 </button>
-              )}
+                
+                {/* 朗读按钮 */}
+                {completion && (
+                  <button
+                    onClick={handleSpeakExplanation}
+                    disabled={!completion || isLoading}
+                    className={`
+                      p-1.5 rounded-full transition-all flex items-center gap-1.5 text-xs
+                      ${isSpeakingExplanation 
+                        ? 'bg-green-600 text-white' 
+                        : 'bg-gray-200 text-gray-700 hover:bg-green-100 hover:text-green-600'
+                      }
+                      disabled:opacity-50 disabled:cursor-not-allowed
+                    `}
+                    title={isSpeakingExplanation ? '停止朗读' : '朗读解释'}
+                  >
+                    <Volume2 size={16} className={isSpeakingExplanation ? 'animate-pulse' : ''} />
+                    <span className="hidden sm:inline">
+                      {isSpeakingExplanation ? '停止' : '朗读'}
+                    </span>
+                  </button>
+                )}
+              </div>
             </div>
             
             {/* 加载状态 */}

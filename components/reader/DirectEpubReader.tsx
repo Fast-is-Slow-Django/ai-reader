@@ -39,16 +39,41 @@ export default function DirectEpubReader({ url, title, bookId }: DirectEpubReade
   // 控制面板显示状态
   const [isControlPanelOpen, setIsControlPanelOpen] = useState(false)
   
-  // 悬浮按钮的位置和大小
-  const [buttonPosition, setButtonPosition] = useState({ x: 0, y: 0 })
-  const [buttonSizePercent, setButtonSizePercent] = useState(50) // 0-100，默认50
-  const [buttonOpacity, setButtonOpacity] = useState(70) // 0-100，默认70%
+  // 悬浮按钮的位置和大小 - 从localStorage加载
+  const [buttonPosition, setButtonPosition] = useState(() => {
+    if (typeof window === 'undefined') return { x: 0, y: 0 }
+    const saved = localStorage.getItem('floatingButtonPosition')
+    return saved ? JSON.parse(saved) : { x: 0, y: 0 }
+  })
+  const [buttonSizePercent, setButtonSizePercent] = useState(() => {
+    if (typeof window === 'undefined') return 50
+    const saved = localStorage.getItem('floatingButtonSize')
+    return saved ? Number(saved) : 50
+  })
+  const [buttonOpacity, setButtonOpacity] = useState(() => {
+    if (typeof window === 'undefined') return 70
+    const saved = localStorage.getItem('floatingButtonOpacity')
+    return saved ? Number(saved) : 70
+  })
   const [isDragging, setIsDragging] = useState(false)
   const dragStartPos = useRef({ x: 0, y: 0 })
   const buttonRef = useRef<HTMLButtonElement>(null)
   
   // 将百分比转换为实际像素大小 (44px - 88px)
   const buttonSize = Math.round(44 + (buttonSizePercent / 100) * 44)
+  
+  // 保存悬浮按钮设置到localStorage
+  useEffect(() => {
+    localStorage.setItem('floatingButtonPosition', JSON.stringify(buttonPosition))
+  }, [buttonPosition])
+  
+  useEffect(() => {
+    localStorage.setItem('floatingButtonSize', String(buttonSizePercent))
+  }, [buttonSizePercent])
+  
+  useEffect(() => {
+    localStorage.setItem('floatingButtonOpacity', String(buttonOpacity))
+  }, [buttonOpacity])
 
   // AI 面板
   const [isAIPanelOpen, setIsAIPanelOpen] = useState(false)
