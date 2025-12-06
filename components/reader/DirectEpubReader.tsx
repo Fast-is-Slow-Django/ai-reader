@@ -272,13 +272,43 @@ export default function DirectEpubReader({ url, title, bookId }: DirectEpubReade
           await rendition.display()
         }
 
+        // 5.5. 事件触发测试
+        console.log('🧪 开始事件触发测试...')
+        
+        const viewer = viewerRef.current
+        if (viewer) {
+          // 测试1: Pointer Events (外层容器)
+          viewer.addEventListener('pointerdown', () => {
+            console.log('✅ 测试1: Pointer Down 在外层容器被触发！')
+          }, { passive: false })
+          
+          // 测试2: Touch Events (外层容器)
+          viewer.addEventListener('touchstart', () => {
+            console.log('✅ 测试2: Touch Start 在外层容器被触发！')
+          }, { passive: false })
+        }
+        
+        // 测试3: Touch Events (window 级别)
+        const windowTouchTest = () => {
+          console.log('✅ 测试3: Touch Start 在 Window 被触发！')
+        }
+        window.addEventListener('touchstart', windowTouchTest, { passive: false })
+        
+        // 测试4: Pointer Events (window 级别)
+        const windowPointerTest = () => {
+          console.log('✅ 测试4: Pointer Down 在 Window 被触发！')
+        }
+        window.addEventListener('pointerdown', windowPointerTest, { passive: false })
+        
+        console.log('🧪 测试监听器已设置，请在阅读页面滑动/点击')
+        
         // 5.5. 监听首次渲染完成，设置滑动手势
         let swipeSetupDone = false
         rendition.on('rendered', () => {
           if (swipeSetupDone) return
           swipeSetupDone = true
           
-          console.log('📱 EPUB 首次渲染完成，设置滑动手势...')
+          console.log('📱 EPUB 首次渲染完成，测试 iframe 事件...')
           
           const setupSwipeGesture = () => {
             const viewer = viewerRef.current
@@ -290,12 +320,24 @@ export default function DirectEpubReader({ url, title, bookId }: DirectEpubReade
             // 获取 iframe (EPUB 内容在 iframe 中)
             const iframe = viewer.querySelector('iframe') as HTMLIFrameElement
             if (!iframe || !iframe.contentDocument) {
-              console.warn('⚠️ iframe 或 contentDocument 不存在，无法设置滑动')
+              console.warn('⚠️ iframe 或 contentDocument 不存在，无法测试')
               return
             }
 
             const iframeDoc = iframe.contentDocument
-            console.log('📱 找到 iframe document，准备添加滑动监听')
+            console.log('📱 找到 iframe document，添加测试监听器')
+            
+            // 测试5: Touch Events (iframe 内部)
+            iframeDoc.addEventListener('touchstart', () => {
+              console.log('✅ 测试5: Touch Start 在 iframe 内部被触发！')
+            }, { passive: false })
+            
+            // 测试6: Pointer Events (iframe 内部)
+            iframeDoc.addEventListener('pointerdown', () => {
+              console.log('✅ 测试6: Pointer Down 在 iframe 内部被触发！')
+            }, { passive: false })
+            
+            console.log('🧪 iframe 测试监听器已设置')
 
             const handleTouchStart = (e: TouchEvent) => {
               // 如果AI面板打开，不处理滑动
