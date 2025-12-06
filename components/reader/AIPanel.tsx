@@ -35,10 +35,10 @@ export default function AIPanel({
   /**
    * 调用 AI 生成解释（独立函数，可复用）
    */
-  const fetchExplanation = useCallback(() => {
+  const fetchExplanation = useCallback((forceRefresh = false) => {
     if (!selectedText) return
 
-    console.log('🤖 调用 AI 解释')
+    console.log('🤖 调用 AI 解释', forceRefresh ? '(强制刷新)' : '')
     console.log('   目标词:', selectedText)
     console.log('   上下文:', context.substring(0, 100))
     
@@ -55,6 +55,7 @@ export default function AIPanel({
         text: selectedText,
         context,
         bookId,
+        forceRefresh, // 添加强制刷新标记
       }),
     })
       .then(async (response) => {
@@ -328,7 +329,7 @@ export default function AIPanel({
               <div className="flex items-center gap-2">
                 {/* 刷新按钮 */}
                 <button
-                  onClick={fetchExplanation}
+                  onClick={() => fetchExplanation(true)}
                   disabled={isLoading}
                   className="p-1.5 rounded-full transition-all flex items-center gap-1.5 text-xs bg-gray-200 text-gray-700 hover:bg-blue-100 hover:text-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
                   title="重新生成解释"

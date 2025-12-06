@@ -19,7 +19,7 @@ export async function POST(req: Request) {
     }
 
     // 2. 解析请求体
-    const { text, context, bookId } = await req.json()
+    const { text, context, bookId, forceRefresh } = await req.json()
 
     if (!text || !context) {
       return new Response('Missing required fields: text or context', { status: 400 })
@@ -29,9 +29,10 @@ export async function POST(req: Request) {
     console.log('   目标词:', text)
     console.log('   上下文:', context.substring(0, 100) + '...')
     console.log('   书籍ID:', bookId || '(未提供)')
+    console.log('   强制刷新:', forceRefresh ? '是' : '否')
 
-    // 3. 检查词汇缓存
-    if (bookId) {
+    // 3. 检查词汇缓存（强制刷新时跳过）
+    if (bookId && !forceRefresh) {
       // 生成上下文哈希
       const contextData = `${text}|${context}`
       let hash = 0
@@ -137,21 +138,43 @@ Examples:
       }
       const contextHash = hash.toString(36)
 
-      await supabase
-        .from('vocabulary_cache')
-        .insert({
-          user_id: user.id,
-          book_id: bookId,
-          selected_text: text,
-          context,
-          context_hash: contextHash,
-          ai_explanation: finalText,
-          created_at: new Date().toISOString(),
-          accessed_count: 1,
-          last_accessed_at: new Date().toISOString(),
-        })
-      
-      console.log('✅ 已保存到词汇缓存')
+      if (forceRefresh) {
+        // 强制刷新：更新或插入
+        console.log('🔄 更新缓存（强制刷新）')
+        await supabase
+          .from('vocabulary_cache')
+          .upsert({
+            user_id: user.id,
+            book_id: bookId,
+            context_hash: contextHash,
+            selected_text: text,
+            context,
+            ai_explanation: finalText,
+            accessed_count: 1,
+            last_accessed_at: new Date().toISOString(),
+          }, {
+            onConflict: 'user_id,book_id,context_hash'
+          })
+        
+        console.log('✅ 已更新缓存（强制刷新）')
+      } else {
+        // 正常保存：只插入新记录
+        await supabase
+          .from('vocabulary_cache')
+          .insert({
+            user_id: user.id,
+            book_id: bookId,
+            selected_text: text,
+            context,
+            context_hash: contextHash,
+            ai_explanation: finalText,
+            created_at: new Date().toISOString(),
+            accessed_count: 1,
+            last_accessed_at: new Date().toISOString(),
+          })
+        
+        console.log('✅ 已保存到词汇缓存')
+      }
     }
 
     // 6. 返回 JSON 响应
