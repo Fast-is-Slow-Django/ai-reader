@@ -71,7 +71,7 @@ export default function ZenithBookshelf({ initialBooks, user }: ZenithBookshelfP
         const progress = calculateProgress(book)
         matchesCategory = progress > 0 && progress < 100
       } else if (activeCategory === 'Favorites') {
-        matchesCategory = book.favorite === true || book.is_favorite === true
+        matchesCategory = book.metadata?.favorite === true
       }
       
       // 搜索筛选
@@ -149,12 +149,41 @@ export default function ZenithBookshelf({ initialBooks, user }: ZenithBookshelfP
   }
 
   // 切换收藏状态的回调
-  const handleToggleFavorite = (bookId: string, isFavorite: boolean) => {
+  const handleToggleFavorite = async (bookId: string, isFavorite: boolean) => {
+    // 乐观更新UI
     setBooks(prevBooks => 
       prevBooks.map(book => 
-        book.id === bookId ? { ...book, favorite: isFavorite, is_favorite: isFavorite } : book
+        book.id === bookId ? { 
+          ...book, 
+          metadata: { ...book.metadata, favorite: isFavorite } 
+        } : book
       )
     )
+    
+    // 更新数据库
+    const book = books.find(b => b.id === bookId)
+    if (book) {
+      const { error } = await supabase
+        .from('books')
+        .update({ 
+          metadata: { ...book.metadata, favorite: isFavorite } 
+        })
+        .eq('id', bookId)
+        .eq('user_id', user.id)
+      
+      if (error) {
+        console.error('Failed to update favorite:', error)
+        // 回滚
+        setBooks(prevBooks => 
+          prevBooks.map(b => 
+            b.id === bookId ? { 
+              ...b, 
+              metadata: { ...b.metadata, favorite: !isFavorite } 
+            } : b
+          )
+        )
+      }
+    }
   }
 
   // 进入多选模式
@@ -187,26 +216,35 @@ export default function ZenithBookshelf({ initialBooks, user }: ZenithBookshelfP
     // 乐观更新UI
     setBooks(prevBooks =>
       prevBooks.map(book =>
-        bookIds.includes(book.id) ? { ...book, favorite: true, is_favorite: true } : book
+        bookIds.includes(book.id) 
+          ? { ...book, metadata: { ...book.metadata, favorite: true } }
+          : book
       )
     )
 
-    // 更新数据库 - 尝试两种字段名
+    // 批量更新数据库
     for (const bookId of bookIds) {
-      const { error } = await supabase
-        .from('books')
-        .update({ favorite: true })
-        .eq('id', bookId)
-        .eq('user_id', user.id)
-      
-      if (error) {
-        console.error('Failed to favorite book:', bookId, error)
-        // 回滚 UI
-        setBooks(prevBooks =>
-          prevBooks.map(book =>
-            book.id === bookId ? { ...book, favorite: false, is_favorite: false } : book
+      const book = books.find(b => b.id === bookId)
+      if (book) {
+        const { error } = await supabase
+          .from('books')
+          .update({ 
+            metadata: { ...book.metadata, favorite: true } 
+          })
+          .eq('id', bookId)
+          .eq('user_id', user.id)
+        
+        if (error) {
+          console.error('Failed to favorite book:', bookId, error)
+          // 回滚
+          setBooks(prevBooks =>
+            prevBooks.map(b =>
+              b.id === bookId 
+                ? { ...b, metadata: { ...b.metadata, favorite: false } }
+                : b
+            )
           )
-        )
+        }
       }
     }
 

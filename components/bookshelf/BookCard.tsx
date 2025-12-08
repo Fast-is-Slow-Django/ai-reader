@@ -14,7 +14,12 @@ interface BookCardProps {
     cover_url?: string | null
     upload_date: string
     reading_progress?: any
-    is_favorite?: boolean
+    metadata?: {
+      favorite?: boolean
+      tags?: string[]
+      rating?: number
+      [key: string]: any
+    }
   }
   onToggleFavorite: (bookId: string, isFavorite: boolean) => void
   isMultiSelectMode?: boolean
@@ -42,7 +47,7 @@ export default function BookCard({
   }, [isSelected, isMultiSelectMode, book.title])
   
   const [isLongPress, setIsLongPress] = useState(false)
-  const [isFavorite, setIsFavorite] = useState(book.is_favorite || false)
+  const [isFavorite, setIsFavorite] = useState(book.metadata?.favorite || false)
   const longPressTimer = useRef<NodeJS.Timeout | null>(null)
   const touchStartPos = useRef({ x: 0, y: 0 })
   const isPressed = useRef(false)
@@ -128,6 +133,9 @@ export default function BookCard({
 
   // 触摸/鼠标抬起
   const handlePressEnd = (e: React.TouchEvent | React.MouseEvent) => {
+    // 阻止事件冒泡
+    e.stopPropagation()
+    
     const wasLongPress = isLongPress
     
     // 清理状态
