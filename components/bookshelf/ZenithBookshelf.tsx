@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useMemo, useEffect } from 'react'
-import { Search, Grid, ChevronLeft, ChevronRight, Plus, Heart, Trash2, X } from 'lucide-react'
+import { Search, BookOpen, ChevronLeft, ChevronRight, Plus, Heart, Trash2, X } from 'lucide-react'
 import BookCard from './BookCard'
 import ProfileDropdown from './ProfileDropdown'
 import BookUploader from '@/components/dashboard/BookUploader'
@@ -235,7 +235,7 @@ export default function ZenithBookshelf({ initialBooks, user }: ZenithBookshelfP
               {/* Logo和标题 */}
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 bg-black rounded-lg flex items-center justify-center text-white">
-                  <Grid size={18} />
+                  <BookOpen size={18} />
                 </div>
                 <h1 className="text-xl font-bold tracking-tight text-gray-900">iReader</h1>
               </div>

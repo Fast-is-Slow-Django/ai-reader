@@ -1,9 +1,9 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, BookOpen, Calendar, Hash, FileText, Volume2, Trash2, ChevronDown, ChevronUp, Loader2, RefreshCw } from 'lucide-react'
+import { ArrowLeft, BookOpen, Calendar, Hash, FileText, Volume2, Trash2, ChevronDown, ChevronUp, Loader2, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react'
 import { createClient } from '@/utils/supabase/client'
 
 interface VocabularyItem {
@@ -32,6 +32,14 @@ export default function VocabularyClient({ initialVocabularies, user }: Vocabula
   const [playingItems, setPlayingItems] = useState<Set<string>>(new Set())
   const [refreshingItems, setRefreshingItems] = useState<Set<string>>(new Set())
   const [deletingItems, setDeletingItems] = useState<Set<string>>(new Set())
+  
+  // 分页状态
+  const [currentPage, setCurrentPage] = useState(0)
+  const [touchStart, setTouchStart] = useState<number | null>(null)
+  const [touchEnd, setTouchEnd] = useState<number | null>(null)
+  
+  // 每页显示的单词数量
+  const ITEMS_PER_PAGE = 10
 
   // 切换展开/折叠
   const toggleExpand = (id: string) => {
@@ -166,6 +174,13 @@ export default function VocabularyClient({ initialVocabularies, user }: Vocabula
       if (!error) {
         setVocabularies(prevList => prevList.filter(v => v.id !== id))
         expandedItems.delete(id)
+        
+        // 如果删除后当前页为空，回到上一页
+        const newTotal = vocabularies.length - 1
+        const newTotalPages = Math.ceil(newTotal / ITEMS_PER_PAGE)
+        if (currentPage >= newTotalPages && currentPage > 0) {
+          setCurrentPage(currentPage - 1)
+        }
       }
     } catch (error) {
       console.error('删除失败:', error)
@@ -176,10 +191,54 @@ export default function VocabularyClient({ initialVocabularies, user }: Vocabula
     }
   }
 
+  // 分页计算
+  const totalPages = Math.max(1, Math.ceil(vocabularies.length / ITEMS_PER_PAGE))
+  const paginatedVocabularies = useMemo(() => {
+    const start = currentPage * ITEMS_PER_PAGE
+    const end = start + ITEMS_PER_PAGE
+    return vocabularies.slice(start, end)
+  }, [vocabularies, currentPage])
+
+  // 翻页函数
+  const nextPage = () => {
+    if (currentPage < totalPages - 1) {
+      setCurrentPage(currentPage + 1)
+    }
+  }
+
+  const prevPage = () => {
+    if (currentPage > 0) {
+      setCurrentPage(currentPage - 1)
+    }
+  }
+
+  // 触摸手势处理
+  const onTouchStart = (e: React.TouchEvent) => {
+    setTouchEnd(null)
+    setTouchStart(e.targetTouches[0].clientX)
+  }
+
+  const onTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd(e.targetTouches[0].clientX)
+  }
+
+  const onTouchEnd = () => {
+    if (!touchStart || !touchEnd) return
+    
+    const distance = touchStart - touchEnd
+    const minSwipeDistance = 50
+    
+    const isLeftSwipe = distance > minSwipeDistance
+    const isRightSwipe = distance < -minSwipeDistance
+    
+    if (isLeftSwipe) nextPage()
+    if (isRightSwipe) prevPage()
+  }
+
   return (
-    <div className="min-h-screen bg-[#F5F5F7] text-[#1D1D1F]">
+    <div className="h-screen flex flex-col bg-[#F5F5F7] text-[#1D1D1F] overflow-hidden">
       {/* 顶部导航栏 */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-10 shadow-sm">
+      <header className="flex-none bg-white border-b border-gray-200 z-10 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             {/* 左侧：返回按钮和标题 */}
@@ -210,11 +269,18 @@ export default function VocabularyClient({ initialVocabularies, user }: Vocabula
         </div>
       </header>
 
-      {/* 主要内容区 */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* 词汇列表 */}
-        <div className="space-y-3">
-          {vocabularies.map((vocab) => {
+      {/* 主要内容区 - 横向翻页 */}
+      <main 
+        className="flex-1 relative w-full overflow-hidden"
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+      >
+        <div className="h-full w-full overflow-y-auto overflow-x-hidden px-4 sm:px-6 lg:px-8 py-8">
+          <div className="max-w-7xl mx-auto">
+            {/* 词汇列表 */}
+            <div className="space-y-3">
+              {paginatedVocabularies.map((vocab) => {
             const isExpanded = expandedItems.has(vocab.id)
             const isPlaying = playingItems.has(vocab.id)
             const isRefreshing = refreshingItems.has(vocab.id)
@@ -357,28 +423,82 @@ export default function VocabularyClient({ initialVocabularies, user }: Vocabula
           })}
         </div>
 
-        {/* 空状态提示 */}
-        {vocabularies.length === 0 && (
-          <div className="mt-16 text-center">
-            <div className="inline-flex items-center justify-center w-24 h-24 bg-gray-100 rounded-full mb-4">
-              <FileText className="text-gray-400" size={48} />
-            </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">
-              还没有保存的单词
-            </h3>
-            <p className="text-gray-600 mb-6">
-              在阅读时选择单词查看AI解释，它们会自动保存到这里
-            </p>
-            <Link 
-              href="/dashboard"
-              className="inline-flex items-center gap-2 px-6 py-3 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors"
-            >
-              <ArrowLeft size={16} />
-              返回书架
-            </Link>
+            {/* 空状态提示 */}
+            {vocabularies.length === 0 && (
+              <div className="mt-16 text-center">
+                <div className="inline-flex items-center justify-center w-24 h-24 bg-gray-100 rounded-full mb-4">
+                  <FileText className="text-gray-400" size={48} />
+                </div>
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                  还没有保存的单词
+                </h3>
+                <p className="text-gray-600 mb-6">
+                  在阅读时选择单词查看AI解释，它们会自动保存到这里
+                </p>
+                <Link 
+                  href="/dashboard"
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors"
+                >
+                  <ArrowLeft size={16} />
+                  返回书架
+                </Link>
+              </div>
+            )}
           </div>
+        </div>
+
+        {/* 翻页按钮（桌面端） */}
+        {vocabularies.length > 0 && totalPages > 1 && (
+          <>
+            {/* 左箭头 */}
+            {currentPage > 0 && (
+              <button
+                onClick={prevPage}
+                className="hidden md:flex absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/80 backdrop-blur-sm rounded-full shadow-lg items-center justify-center hover:bg-white transition-all z-10"
+              >
+                <ChevronLeft size={20} />
+              </button>
+            )}
+            
+            {/* 右箭头 */}
+            {currentPage < totalPages - 1 && (
+              <button
+                onClick={nextPage}
+                className="hidden md:flex absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/80 backdrop-blur-sm rounded-full shadow-lg items-center justify-center hover:bg-white transition-all z-10"
+              >
+                <ChevronRight size={20} />
+              </button>
+            )}
+          </>
         )}
       </main>
+
+      {/* 页码指示器 */}
+      {vocabularies.length > 0 && totalPages > 1 && (
+        <footer className="flex-none py-4 bg-white border-t border-gray-200">
+          <div className="flex items-center justify-center gap-2">
+            <span className="text-sm text-gray-600">
+              第 {currentPage + 1} 页，共 {totalPages} 页
+            </span>
+            <div className="flex gap-1 ml-3">
+              {Array.from({ length: totalPages }).map((_, index) => (
+                <button
+                  key={index}
+                  onClick={() => setCurrentPage(index)}
+                  className={`
+                    w-2 h-2 rounded-full transition-all duration-300
+                    ${index === currentPage 
+                      ? 'bg-black w-6' 
+                      : 'bg-gray-300 hover:bg-gray-400'
+                    }
+                  `}
+                  aria-label={`跳转到第 ${index + 1} 页`}
+                />
+              ))}
+            </div>
+          </div>
+        </footer>
+      )}
     </div>
   )
 }
