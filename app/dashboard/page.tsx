@@ -1,11 +1,6 @@
 import { createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
-import BookUploader from '@/components/dashboard/BookUploader'
-import BookCard from '@/components/dashboard/BookCard'
-import SignOutButton from '@/components/auth/SignOutButton'
-import VocabularyButton from '@/components/dashboard/VocabularyButton'
-import CacheButton from '@/components/dashboard/CacheButton'
-import { BookOpen } from 'lucide-react'
+import ZenithBookshelf from '@/components/bookshelf/ZenithBookshelf'
 
 /**
  * 书架页面 - Server Component
@@ -30,87 +25,51 @@ export default async function DashboardPage() {
     redirect('/login')
   }
 
-  // 4. 查询用户的书籍列表
-  const { data: books, error: booksError } = await supabase
-    .from('books')
-    .select('*')
+  // 4. 查询用户的书籍列表（包含user_books关联数据）
+  const { data: userBooks, error: booksError } = await supabase
+    .from('user_books')
+    .select(`
+      id,
+      book_id,
+      reading_progress,
+      is_favorite,
+      last_read_at,
+      books!inner (
+        id,
+        title,
+        author,
+        cover_url,
+        file_url,
+        created_at
+      )
+    `)
     .eq('user_id', user.id)
-    .order('created_at', { ascending: false })
+    .order('last_read_at', { ascending: false, nullsFirst: false })
 
   // 5. 处理查询错误
   if (booksError) {
     console.error('查询书籍失败:', booksError)
   }
 
-  const booksList = books || []
+  // 转换数据格式
+  const booksList = (userBooks || []).map(ub => {
+    const bookData = Array.isArray(ub.books) ? ub.books[0] : ub.books
+    return {
+      id: ub.id,
+      title: bookData?.title || '未知书名',
+      author: bookData?.author,
+      cover_url: bookData?.cover_url,
+      file_url: bookData?.file_url,
+      upload_date: bookData?.created_at,
+      reading_progress: ub.reading_progress,
+      is_favorite: ub.is_favorite,
+      last_read_at: ub.last_read_at
+    }
+  })
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
-      {/* 顶部导航栏 */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-10 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            {/* 左侧：标题和用户信息 */}
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center shadow-md">
-                <BookOpen className="text-white" size={24} />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">我的书架</h1>
-                <p className="text-sm text-gray-600">{user.email}</p>
-              </div>
-            </div>
-
-            {/* 右侧：退出按钮 */}
-            <SignOutButton variant="outline" />
-          </div>
-        </div>
-      </header>
-
-      {/* 主要内容区 */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* 统计信息和快捷操作 */}
-        <div className="mb-8 flex items-center justify-between">
-          <div className="flex items-center gap-2 text-gray-600">
-            <BookOpen size={20} />
-            <span className="text-lg">
-              共 <span className="font-semibold text-gray-900">{booksList.length}</span> 本书籍
-            </span>
-          </div>
-
-          {/* 快捷操作按钮 */}
-          <div className="flex items-center gap-3">
-            <CacheButton />
-            <VocabularyButton />
-          </div>
-        </div>
-
-        {/* 书籍网格 */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6">
-          {/* 上传器 - 第一个位置 */}
-          <BookUploader />
-
-          {/* 书籍卡片列表 */}
-          {booksList.map((book) => (
-            <BookCard key={book.id} book={book} />
-          ))}
-        </div>
-
-        {/* 空状态提示 */}
-        {booksList.length === 0 && (
-          <div className="mt-16 text-center">
-            <div className="inline-flex items-center justify-center w-24 h-24 bg-gray-100 rounded-full mb-4">
-              <BookOpen className="text-gray-400" size={48} />
-            </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">
-              还没有书籍
-            </h3>
-            <p className="text-gray-600 mb-6">
-              点击左上角的卡片上传你的第一本电子书
-            </p>
-          </div>
-        )}
-      </main>
+    <div className="h-screen">
+      <ZenithBookshelf initialBooks={booksList} user={user} />
     </div>
   )
 }

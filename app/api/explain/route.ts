@@ -32,7 +32,8 @@ export async function POST(req: Request) {
     console.log('   强制刷新:', forceRefresh ? '是' : '否')
 
     // 3. 检查词汇缓存（强制刷新时跳过）
-    if (bookId && !forceRefresh) {
+    // 即使没有bookId也尝试基于文本查找缓存
+    if (!forceRefresh) {
       // 生成上下文哈希
       const contextData = `${text}|${context}`
       let hash = 0
@@ -43,7 +44,7 @@ export async function POST(req: Request) {
       }
       const contextHash = hash.toString(36)
       
-      console.log('🔍 查询缓存:', { text, contextHash, bookId })
+      console.log('🔍 查询缓存:', { text, contextHash, bookId: bookId || 'global' })
 
       // 查询缓存
       const { data: cachedData, error: cacheError } = await supabase
