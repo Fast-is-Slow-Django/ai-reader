@@ -51,7 +51,6 @@ export default function BookCard({
   const longPressTimer = useRef<NodeJS.Timeout | null>(null)
   const touchStartPos = useRef({ x: 0, y: 0 })
   const isPressed = useRef(false)
-  const lastClickTime = useRef(0)  // 防止重复点击
   
   // 长按时长（毫秒）
   const LONG_PRESS_DURATION = 500
@@ -166,22 +165,11 @@ export default function BookCard({
 
   // 处理点击 - 多选模式下切换选中，普通模式下打开阅读器
   const handleClick = () => {
-    // 防抖：防止 touch 和 mouse 事件重复触发
-    const now = Date.now()
-    if (now - lastClickTime.current < 300) {
-      console.log(`⏭️ Click ignored - too soon (${now - lastClickTime.current}ms)`)
-      return
-    }
-    lastClickTime.current = now
-    
     console.log(`👆 handleClick - Book: ${book.title.substring(0, 20)}, MultiSelect: ${isMultiSelectMode}, isSelected: ${isSelected}`)
     if (isMultiSelectMode && onSelect) {
       // 多选模式：切换选中状态
       console.log(`🔄 Toggling selection`)
-      console.log(`📞 Calling onSelect with bookId: ${book.id}`)
-      console.log(`📞 onSelect function:`, onSelect)
-      const result = onSelect(book.id)
-      console.log(`📞 onSelect returned:`, result)
+      onSelect(book.id)
     } else {
       // 普通模式：打开阅读器
       console.log(`📖 Opening reader`)
@@ -208,10 +196,13 @@ export default function BookCard({
       onTouchStart={handlePressStart}
       onTouchMove={handlePressMove}
       onTouchEnd={handlePressEnd}
-      onMouseDown={handlePressStart}
-      onMouseMove={handlePressMove}
-      onMouseUp={handlePressEnd}
-      onMouseLeave={cancelLongPress}
+      onClick={(e) => {
+        // 桌面端点击支持（移动端已被touch事件处理）
+        if (!('ontouchstart' in window)) {
+          handlePressStart(e as React.MouseEvent)
+          handlePressEnd(e as React.MouseEvent)
+        }
+      }}
       style={{
         WebkitUserSelect: 'none',
         WebkitTouchCallout: 'none',
