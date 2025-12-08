@@ -128,6 +128,9 @@ export async function uploadEpub(formData: FormData): Promise<UploadResult> {
     
     // 9. 构建 Storage 路径：user_id/fileName
     const filePath = `${user.id}/${fileName}`
+    
+    // 9.5. 读取文件内容用于封面提取
+    const fileArrayBuffer = await file.arrayBuffer()
 
     // 10. 上传文件到 Storage
     const { data: uploadData, error: uploadError } = await supabase.storage
@@ -168,9 +171,45 @@ export async function uploadEpub(formData: FormData): Promise<UploadResult> {
       }
     }
 
-    // 12. 创建数据库记录
-    // 暂时不处理封面，后续可以通过其他方式添加
-    const bookResult = await createBookRecord(publicUrl, bookTitle, filePath, null)
+    // 12. 提取并上传封面
+    let coverUrl: string | null = null
+    try {
+      const { extractEpubCover, generateCoverFileName } = await import('@/utils/extractEpubCover')
+      const coverData = await extractEpubCover(fileArrayBuffer)
+      
+      if (coverData) {
+        // 上传封面到Supabase Storage
+        const coverFileName = generateCoverFileName(filePath.replace('.epub', ''), coverData.mimeType)
+        const coverPath = `${user.id}/covers/${coverFileName}`
+        
+        const { error: coverUploadError } = await supabase.storage
+          .from('user_books')
+          .upload(coverPath, coverData.buffer, {
+            contentType: coverData.mimeType,
+            upsert: true
+          })
+        
+        if (!coverUploadError) {
+          // 生成封面公开URL
+          const { data: coverUrlData } = supabase.storage
+            .from('user_books')
+            .getPublicUrl(coverPath)
+          
+          coverUrl = coverUrlData.publicUrl
+          console.log('Cover extracted and uploaded:', coverUrl)
+        } else {
+          console.error('Failed to upload cover:', coverUploadError)
+        }
+      } else {
+        console.log('No cover found in EPUB')
+      }
+    } catch (error) {
+      console.error('Cover extraction error:', error)
+      // 继续创建书籍记录，即使封面提取失败
+    }
+    
+    // 13. 创建数据库记录
+    const bookResult = await createBookRecord(publicUrl, bookTitle, filePath, coverUrl)
 
     if (!bookResult.success) {
       // 数据库记录创建失败，删除已上传的文件
