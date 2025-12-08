@@ -117,9 +117,9 @@ export default function BookCard({ book, onToggleFavorite }: BookCardProps) {
     const newFavoriteState = !isFavorite
     setIsFavorite(newFavoriteState)
     
-    // 更新数据库
+    // 更新数据库 - 直接更新books表
     const { error } = await supabase
-      .from('user_books')
+      .from('books')
       .update({ is_favorite: newFavoriteState })
       .eq('id', book.id)
     

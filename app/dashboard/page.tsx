@@ -25,47 +25,30 @@ export default async function DashboardPage() {
     redirect('/login')
   }
 
-  // 4. 查询用户的书籍列表（包含user_books关联数据）
-  const { data: userBooks, error: booksError } = await supabase
-    .from('user_books')
-    .select(`
-      id,
-      book_id,
-      reading_progress,
-      is_favorite,
-      last_read_at,
-      books!inner (
-        id,
-        title,
-        author,
-        cover_url,
-        file_url,
-        created_at
-      )
-    `)
+  // 4. 查询用户的书籍列表
+  const { data: books, error: booksError } = await supabase
+    .from('books')
+    .select('*')
     .eq('user_id', user.id)
-    .order('last_read_at', { ascending: false, nullsFirst: false })
+    .order('created_at', { ascending: false })
 
   // 5. 处理查询错误
   if (booksError) {
     console.error('查询书籍失败:', booksError)
   }
 
-  // 转换数据格式
-  const booksList = (userBooks || []).map(ub => {
-    const bookData = Array.isArray(ub.books) ? ub.books[0] : ub.books
-    return {
-      id: ub.id,
-      title: bookData?.title || '未知书名',
-      author: bookData?.author,
-      cover_url: bookData?.cover_url,
-      file_url: bookData?.file_url,
-      upload_date: bookData?.created_at,
-      reading_progress: ub.reading_progress,
-      is_favorite: ub.is_favorite,
-      last_read_at: ub.last_read_at
-    }
-  })
+  // 转换数据格式（适配新界面）
+  const booksList = (books || []).map(book => ({
+    id: book.id,
+    title: book.title || '未知书名',
+    author: book.author,
+    cover_url: book.cover_url,
+    file_url: book.file_url,
+    upload_date: book.created_at,
+    reading_progress: book.reading_progress,
+    is_favorite: book.is_favorite || false,
+    last_read_at: book.last_read_at
+  }))
 
   return (
     <div className="h-screen">
@@ -87,6 +70,6 @@ export const revalidate = 0
  * 页面元数据
  */
 export const metadata = {
-  title: '我的书架 - AI-Reader',
+  title: '我的书架 - iReader',
   description: '管理和阅读你的电子书收藏',
 }
