@@ -36,7 +36,8 @@ type ActionResult<T = void> = {
 export async function createBookRecord(
   fileUrl: string,
   title: string,
-  filePath: string
+  filePath?: string,
+  coverUrl?: string | null,
 ): Promise<ActionResult<Book>> {
   try {
     // 1. 参数验证
@@ -81,6 +82,7 @@ export async function createBookRecord(
         user_id: user.id,
         title: title.trim(),
         file_url: fileUrl,
+        cover_url: coverUrl,
       })
       .select()
       .single()

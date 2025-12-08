@@ -169,7 +169,8 @@ export async function uploadEpub(formData: FormData): Promise<UploadResult> {
     }
 
     // 12. 创建数据库记录
-    const bookResult = await createBookRecord(publicUrl, bookTitle, filePath)
+    // 暂时不处理封面，后续可以通过其他方式添加
+    const bookResult = await createBookRecord(publicUrl, bookTitle, filePath, null)
 
     if (!bookResult.success) {
       // 数据库记录创建失败，删除已上传的文件

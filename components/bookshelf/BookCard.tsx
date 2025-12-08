@@ -135,7 +135,7 @@ export default function BookCard({ book, onToggleFavorite }: BookCardProps) {
   // 处理点击 - 打开阅读器
   const handleClick = () => {
     console.log('📖 点击触发 - 打开阅读器')
-    router.push(`/reader/${book.id}`)
+    router.push(`/read/${book.id}`)
   }
 
   // 清理计时器
