@@ -61,7 +61,12 @@ export default function BookCard({
 
   // 触摸/鼠标按下
   const handlePressStart = (e: React.TouchEvent | React.MouseEvent) => {
-    e.preventDefault()
+    // 在多选模式下，直接点击选择，不需要长按
+    if (isMultiSelectMode && onSelect) {
+      onSelect(book.id)
+      return
+    }
+    
     isPressed.current = true
     setIsLongPress(false)
     
@@ -80,9 +85,13 @@ export default function BookCard({
           onLongPress(book.id)
         }
         
-        // 震动反馈（如果支持）
-        if ('vibrate' in navigator) {
-          navigator.vibrate(50)
+        // 震动反馈（如果支持且用户已交互）
+        try {
+          if ('vibrate' in navigator) {
+            navigator.vibrate(50)
+          }
+        } catch (error) {
+          // 忽略振动错误
         }
       }
     }, LONG_PRESS_DURATION)
@@ -90,7 +99,7 @@ export default function BookCard({
 
   // 触摸/鼠标移动
   const handlePressMove = (e: React.TouchEvent | React.MouseEvent) => {
-    if (!isPressed.current) return
+    if (!isPressed.current || isMultiSelectMode) return
     
     const pos = 'touches' in e ? e.touches[0] : e
     const deltaX = Math.abs(pos.clientX - touchStartPos.current.x)
@@ -227,7 +236,7 @@ export default function BookCard({
         {/* 完成标记 */}
         {progress === 100 && (
           <div className="absolute top-2 left-2 bg-green-500/90 backdrop-blur-sm rounded-full px-2 py-1 shadow-md">
-            <span className="text-xs font-semibold text-white">完成</span>
+            <span className="text-xs font-semibold text-white">Finished</span>
           </div>
         )}
       </div>
@@ -238,7 +247,7 @@ export default function BookCard({
           {book.title}
         </h3>
         <p className="line-clamp-1 text-xs text-gray-500 mt-0.5">
-          {book.author || '未知作者'}
+          {book.author || 'Unknown Author'}
         </p>
       </div>
     </div>

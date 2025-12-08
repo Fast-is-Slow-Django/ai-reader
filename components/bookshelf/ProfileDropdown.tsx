@@ -67,14 +67,14 @@ export default function ProfileDropdown({ user }: ProfileDropdownProps) {
           {/* 用户信息 */}
           <div className="px-4 py-3 border-b border-gray-100">
             <p className="text-sm font-semibold text-gray-900">
-              {user.email || '用户'}
+              {user.email || 'User'}
             </p>
             <p className="text-xs text-gray-500 mt-1">
               ID: {user.id.slice(0, 8)}...
             </p>
           </div>
 
-          {/* 菜单项 */}
+          {/* Menu items */}
           <div className="py-1">
             <button
               onClick={() => {
@@ -85,7 +85,6 @@ export default function ProfileDropdown({ user }: ProfileDropdownProps) {
             >
               <BookOpen className="mr-3 text-gray-400" size={18} />
               <span>Vocabulary List</span>
-              <span className="ml-auto text-xs text-gray-400">词汇表</span>
             </button>
 
             <button
@@ -97,7 +96,6 @@ export default function ProfileDropdown({ user }: ProfileDropdownProps) {
             >
               <Settings className="mr-3 text-gray-400" size={18} />
               <span>Settings</span>
-              <span className="ml-auto text-xs text-gray-400">设置</span>
             </button>
           </div>
 

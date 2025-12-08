@@ -205,7 +205,7 @@ export default function ZenithBookshelf({ initialBooks, user }: ZenithBookshelfP
 
   // 批量删除
   const handleBatchDelete = async () => {
-    if (!confirm(`确定要删除选中的 ${selectedBooks.size} 本书吗？`)) return
+    if (!confirm(`Delete ${selectedBooks.size} selected book(s)?`)) return
     
     const bookIds = Array.from(selectedBooks)
     
@@ -246,7 +246,7 @@ export default function ZenithBookshelf({ initialBooks, user }: ZenithBookshelfP
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
                   <input 
                     type="text" 
-                    placeholder="搜索书籍..." 
+                    placeholder="Search books..." 
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="w-full rounded-full border-none bg-white/80 py-2 pl-9 pr-4 text-sm shadow-sm ring-1 ring-gray-900/5 focus:ring-2 focus:ring-blue-500/50 transition-all backdrop-blur-md"
@@ -270,7 +270,7 @@ export default function ZenithBookshelf({ initialBooks, user }: ZenithBookshelfP
                   <X size={20} />
                 </button>
                 <span className="text-lg font-semibold">
-                  已选择 {selectedBooks.size} 本
+                  {selectedBooks.size} Selected
                 </span>
               </div>
               
@@ -281,7 +281,7 @@ export default function ZenithBookshelf({ initialBooks, user }: ZenithBookshelfP
                   className="flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   <Heart size={18} />
-                  <span>收藏</span>
+                  <span>Favorite</span>
                 </button>
                 <button
                   onClick={handleBatchDelete}
@@ -289,7 +289,7 @@ export default function ZenithBookshelf({ initialBooks, user }: ZenithBookshelfP
                   className="flex items-center gap-2 px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   <Trash2 size={18} />
-                  <span>删除</span>
+                  <span>Delete</span>
                 </button>
               </div>
             </>
@@ -309,7 +309,7 @@ export default function ZenithBookshelf({ initialBooks, user }: ZenithBookshelfP
                   : 'bg-white/50 text-gray-500 hover:bg-white hover:text-gray-900'}
               `}
             >
-              {cat === 'All' ? '全部' : cat === 'Reading' ? '在读' : '收藏'}
+              {cat}
             </button>
           ))}
         </div>
@@ -368,27 +368,27 @@ export default function ZenithBookshelf({ initialBooks, user }: ZenithBookshelfP
                       <div className="text-center text-gray-400">
                         {activeCategory === 'Favorites' && (
                           <>
-                            <p className="text-lg">还没有收藏</p>
-                            <p className="text-sm mt-2">长按书籍封面添加到收藏</p>
+                            <p className="text-lg">No Favorites Yet</p>
+                            <p className="text-sm mt-2">Long press to add books to favorites</p>
                           </>
                         )}
                         {activeCategory === 'Reading' && (
                           <>
-                            <p className="text-lg">还没有在读的书</p>
-                            <p className="text-sm mt-2">开始阅读一本书吧</p>
+                            <p className="text-lg">No Books In Progress</p>
+                            <p className="text-sm mt-2">Start reading a book</p>
                           </>
                         )}
                         {activeCategory === 'All' && searchQuery && (
                           <>
                             <Search size={48} className="mb-4 opacity-50 mx-auto" />
-                            <p className="text-lg">没有找到书籍</p>
-                            <p className="text-sm mt-2">试试其他关键词</p>
+                            <p className="text-lg">No Books Found</p>
+                            <p className="text-sm mt-2">Try different keywords</p>
                           </>
                         )}
                         {activeCategory === 'All' && !searchQuery && (
                           <>
-                            <p className="text-lg">还没有书籍</p>
-                            <p className="text-sm mt-2">点击上方卡片上传你的第一本电子书</p>
+                            <p className="text-lg">No Books Yet</p>
+                            <p className="text-sm mt-2">Upload your first ebook</p>
                           </>
                         )}
                       </div>

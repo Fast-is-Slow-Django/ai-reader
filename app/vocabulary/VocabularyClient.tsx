@@ -159,7 +159,7 @@ export default function VocabularyClient({ initialVocabularies, user }: Vocabula
 
   // 删除词汇
   const handleDelete = async (id: string) => {
-    if (deletingItems.has(id) || !confirm('确定要删除这个单词吗？')) return
+    if (deletingItems.has(id) || !confirm('Delete this word?')) return
     
     const newDeleting = new Set(deletingItems)
     newDeleting.add(id)
@@ -256,7 +256,7 @@ export default function VocabularyClient({ initialVocabularies, user }: Vocabula
                 </div>
                 <div>
                   <h1 className="text-2xl font-bold text-gray-900">Vocabulary List</h1>
-                  <p className="text-sm text-gray-600">共 {vocabularies.length} 个单词</p>
+                  <p className="text-sm text-gray-600">{vocabularies.length} words</p>
                 </div>
               </div>
             </div>
@@ -302,11 +302,11 @@ export default function VocabularyClient({ initialVocabularies, user }: Vocabula
                     </h3>
                     {vocab.book_title && (
                       <span className="text-sm text-gray-500">
-                        《{vocab.book_title}》
+                        {vocab.book_title}
                       </span>
                     )}
                     <span className="text-xs text-gray-400">
-                      {vocab.accessed_count || 1} 次查看
+                      {vocab.accessed_count || 1} views
                     </span>
                   </div>
                   
@@ -319,7 +319,7 @@ export default function VocabularyClient({ initialVocabularies, user }: Vocabula
                       }}
                       disabled={isPlaying}
                       className="p-2 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
-                      title="朗读单词"
+                      title="Read aloud"
                     >
                       {isPlaying ? (
                         <Loader2 size={18} className="animate-spin text-blue-500" />
@@ -336,7 +336,7 @@ export default function VocabularyClient({ initialVocabularies, user }: Vocabula
                       }}
                       disabled={isDeleting}
                       className="p-2 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
-                      title="删除"
+                      title="Delete"
                     >
                       {isDeleting ? (
                         <Loader2 size={18} className="animate-spin text-red-500" />
@@ -370,13 +370,13 @@ export default function VocabularyClient({ initialVocabularies, user }: Vocabula
                     {vocab.ai_explanation && (
                       <div className="prose prose-sm max-w-none">
                         <div className="flex items-center justify-between mb-2">
-                          <span className="text-sm font-semibold text-gray-700">AI 解释</span>
+                          <span className="text-sm font-semibold text-gray-700">AI Explanation</span>
                           <div className="flex gap-2">
                             <button
                               onClick={() => handleSpeak(vocab.ai_explanation!, vocab.id, true)}
                               disabled={isPlaying}
                               className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
-                              title="朗读解释"
+                              title="Read explanation"
                             >
                               {isPlaying ? (
                                 <Loader2 size={14} className="animate-spin text-blue-500" />
@@ -388,7 +388,7 @@ export default function VocabularyClient({ initialVocabularies, user }: Vocabula
                               onClick={() => handleRefreshExplanation(vocab)}
                               disabled={isRefreshing}
                               className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
-                              title="刷新解释"
+                              title="Refresh explanation"
                             >
                               {isRefreshing ? (
                                 <Loader2 size={14} className="animate-spin text-blue-500" />
@@ -413,7 +413,7 @@ export default function VocabularyClient({ initialVocabularies, user }: Vocabula
                         </span>
                       </div>
                       {vocab.book_author && (
-                        <span>作者: {vocab.book_author}</span>
+                        <span>Author: {vocab.book_author}</span>
                       )}
                     </div>
                   </div>
@@ -430,17 +430,17 @@ export default function VocabularyClient({ initialVocabularies, user }: Vocabula
                   <FileText className="text-gray-400" size={48} />
                 </div>
                 <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                  还没有保存的单词
+                  No Saved Words Yet
                 </h3>
                 <p className="text-gray-600 mb-6">
-                  在阅读时选择单词查看AI解释，它们会自动保存到这里
+                  Words you look up while reading will be saved here
                 </p>
                 <Link 
                   href="/dashboard"
                   className="inline-flex items-center gap-2 px-6 py-3 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors"
                 >
                   <ArrowLeft size={16} />
-                  返回书架
+                  Back to Bookshelf
                 </Link>
               </div>
             )}
@@ -478,7 +478,7 @@ export default function VocabularyClient({ initialVocabularies, user }: Vocabula
         <footer className="flex-none py-4 bg-white border-t border-gray-200">
           <div className="flex items-center justify-center gap-2">
             <span className="text-sm text-gray-600">
-              第 {currentPage + 1} 页，共 {totalPages} 页
+              Page {currentPage + 1} of {totalPages}
             </span>
             <div className="flex gap-1 ml-3">
               {Array.from({ length: totalPages }).map((_, index) => (
@@ -492,7 +492,7 @@ export default function VocabularyClient({ initialVocabularies, user }: Vocabula
                       : 'bg-gray-300 hover:bg-gray-400'
                     }
                   `}
-                  aria-label={`跳转到第 ${index + 1} 页`}
+                  aria-label={`Go to page ${index + 1}`}
                 />
               ))}
             </div>
