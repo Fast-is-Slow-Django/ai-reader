@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useMemo, useEffect } from 'react'
-import { Search, Grid, ChevronLeft, ChevronRight, Plus } from 'lucide-react'
+import { Search, Grid, ChevronLeft, ChevronRight, Plus, Heart, Trash2, X } from 'lucide-react'
 import BookCard from './BookCard'
 import ProfileDropdown from './ProfileDropdown'
 import BookUploader from '@/components/dashboard/BookUploader'
@@ -22,18 +22,22 @@ export default function ZenithBookshelf({ initialBooks, user }: ZenithBookshelfP
   const [touchStart, setTouchStart] = useState<number | null>(null)
   const [touchEnd, setTouchEnd] = useState<number | null>(null)
   
+  // 多选模式
+  const [isMultiSelectMode, setIsMultiSelectMode] = useState(false)
+  const [selectedBooks, setSelectedBooks] = useState<Set<string>>(new Set())
+  
   const supabase = createClient()
 
   // 每页显示的书籍数量（根据屏幕大小调整）
   const getItemsPerPage = () => {
-    if (typeof window === 'undefined') return 8
+    if (typeof window === 'undefined') return 15
     const width = window.innerWidth
-    if (width < 640) return 6 // 手机: 2列x3行
-    if (width < 1024) return 9 // 平板: 3列x3行
-    return 12 // 桌面: 4列x3行
+    if (width < 640) return 12 // 手机: 3列x4行
+    if (width < 1024) return 15 // 平板: 4列x4行
+    return 20 // 桌面: 5列x4行
   }
   
-  const [itemsPerPage, setItemsPerPage] = useState(8)
+  const [itemsPerPage, setItemsPerPage] = useState(15)
   
   useEffect(() => {
     const handleResize = () => {
@@ -153,38 +157,143 @@ export default function ZenithBookshelf({ initialBooks, user }: ZenithBookshelfP
     )
   }
 
+  // 进入多选模式
+  const handleEnterMultiSelect = (bookId: string) => {
+    setIsMultiSelectMode(true)
+    setSelectedBooks(new Set([bookId]))
+  }
+
+  // 退出多选模式
+  const handleExitMultiSelect = () => {
+    setIsMultiSelectMode(false)
+    setSelectedBooks(new Set())
+  }
+
+  // 切换书籍选中状态
+  const handleToggleSelect = (bookId: string) => {
+    const newSelected = new Set(selectedBooks)
+    if (newSelected.has(bookId)) {
+      newSelected.delete(bookId)
+    } else {
+      newSelected.add(bookId)
+    }
+    setSelectedBooks(newSelected)
+  }
+
+  // 批量添加收藏
+  const handleBatchFavorite = async () => {
+    const bookIds = Array.from(selectedBooks)
+    
+    // 乐观更新UI
+    setBooks(prevBooks =>
+      prevBooks.map(book =>
+        bookIds.includes(book.id) ? { ...book, is_favorite: true } : book
+      )
+    )
+
+    // 更新数据库
+    for (const bookId of bookIds) {
+      await supabase
+        .from('books')
+        .update({ is_favorite: true })
+        .eq('id', bookId)
+        .eq('user_id', user.id)
+    }
+
+    handleExitMultiSelect()
+  }
+
+  // 批量删除
+  const handleBatchDelete = async () => {
+    if (!confirm(`确定要删除选中的 ${selectedBooks.size} 本书吗？`)) return
+    
+    const bookIds = Array.from(selectedBooks)
+    
+    // 更新UI
+    setBooks(prevBooks => prevBooks.filter(book => !bookIds.includes(book.id)))
+
+    // 删除数据库记录
+    for (const bookId of bookIds) {
+      await supabase
+        .from('books')
+        .delete()
+        .eq('id', bookId)
+        .eq('user_id', user.id)
+    }
+
+    handleExitMultiSelect()
+  }
+
   return (
     <div className="h-screen flex flex-col bg-[#F5F5F7] text-[#1D1D1F] select-none overflow-hidden">
       
       {/* Header - 固定顶部 */}
       <header className="flex-none px-6 py-4 z-50">
         <div className="mx-auto max-w-7xl flex items-center justify-between">
-          {/* Logo和标题 */}
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-black rounded-lg flex items-center justify-center text-white">
-              <Grid size={18} />
-            </div>
-            <h1 className="text-xl font-bold tracking-tight text-gray-900">iReader</h1>
-          </div>
+          {!isMultiSelectMode ? (
+            <>
+              {/* Logo和标题 */}
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-black rounded-lg flex items-center justify-center text-white">
+                  <Grid size={18} />
+                </div>
+                <h1 className="text-xl font-bold tracking-tight text-gray-900">iReader</h1>
+              </div>
 
-          {/* 搜索栏 */}
-          <div className="flex-1 mx-4 md:mx-12 max-w-sm">
-            <div className="relative group">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-              <input 
-                type="text" 
-                placeholder="搜索书籍..." 
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full rounded-full border-none bg-white/80 py-2 pl-9 pr-4 text-sm shadow-sm ring-1 ring-gray-900/5 focus:ring-2 focus:ring-blue-500/50 transition-all backdrop-blur-md"
-              />
-            </div>
-          </div>
+              {/* 搜索栏 */}
+              <div className="flex-1 mx-4 md:mx-12 max-w-sm">
+                <div className="relative group">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                  <input 
+                    type="text" 
+                    placeholder="搜索书籍..." 
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full rounded-full border-none bg-white/80 py-2 pl-9 pr-4 text-sm shadow-sm ring-1 ring-gray-900/5 focus:ring-2 focus:ring-blue-500/50 transition-all backdrop-blur-md"
+                  />
+                </div>
+              </div>
 
-          {/* 用户头像 */}
-          <div className="flex items-center gap-3">
-            <ProfileDropdown user={user} />
-          </div>
+              {/* 用户头像 */}
+              <div className="flex items-center gap-3">
+                <ProfileDropdown user={user} />
+              </div>
+            </>
+          ) : (
+            <>
+              {/* 多选模式工具栏 */}
+              <div className="flex items-center gap-4 flex-1">
+                <button
+                  onClick={handleExitMultiSelect}
+                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <X size={20} />
+                </button>
+                <span className="text-lg font-semibold">
+                  已选择 {selectedBooks.size} 本
+                </span>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleBatchFavorite}
+                  disabled={selectedBooks.size === 0}
+                  className="flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  <Heart size={18} />
+                  <span>收藏</span>
+                </button>
+                <button
+                  onClick={handleBatchDelete}
+                  disabled={selectedBooks.size === 0}
+                  className="flex items-center gap-2 px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  <Trash2 size={18} />
+                  <span>删除</span>
+                </button>
+              </div>
+            </>
+          )}
         </div>
         
         {/* 分类过滤器 */}
@@ -227,9 +336,9 @@ export default function ZenithBookshelf({ initialBooks, user }: ZenithBookshelfP
                 
                 {/* 网格布局 */}
                 {page.type === 'grid' && (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6 py-8">
+                  <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-4 py-8">
                     {/* 第一页第一个位置显示上传器 */}
-                    {index === 0 && (
+                    {index === 0 && !isMultiSelectMode && (
                       <div className="aspect-[2/3]">
                         <BookUploader />
                       </div>
@@ -239,6 +348,10 @@ export default function ZenithBookshelf({ initialBooks, user }: ZenithBookshelfP
                         key={book.id} 
                         book={book}
                         onToggleFavorite={handleToggleFavorite}
+                        isMultiSelectMode={isMultiSelectMode}
+                        isSelected={selectedBooks.has(book.id)}
+                        onLongPress={handleEnterMultiSelect}
+                        onSelect={handleToggleSelect}
                       />
                     ))}
                   </div>

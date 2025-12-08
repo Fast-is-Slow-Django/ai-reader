@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
-import { Heart } from 'lucide-react'
+import { Heart, Check } from 'lucide-react'
 import { createClient } from '@/utils/supabase/client'
 
 interface BookCardProps {
@@ -17,9 +17,20 @@ interface BookCardProps {
     is_favorite?: boolean
   }
   onToggleFavorite: (bookId: string, isFavorite: boolean) => void
+  isMultiSelectMode?: boolean
+  isSelected?: boolean
+  onLongPress?: (bookId: string) => void
+  onSelect?: (bookId: string) => void
 }
 
-export default function BookCard({ book, onToggleFavorite }: BookCardProps) {
+export default function BookCard({ 
+  book, 
+  onToggleFavorite, 
+  isMultiSelectMode = false,
+  isSelected = false,
+  onLongPress,
+  onSelect 
+}: BookCardProps) {
   const router = useRouter()
   const supabase = createClient()
   
@@ -63,7 +74,11 @@ export default function BookCard({ book, onToggleFavorite }: BookCardProps) {
       if (isPressed.current) {
         // 触发长按
         setIsLongPress(true)
-        handleLongPress()
+        
+        // 如果不在多选模式，则进入多选模式
+        if (!isMultiSelectMode && onLongPress) {
+          onLongPress(book.id)
+        }
         
         // 震动反馈（如果支持）
         if ('vibrate' in navigator) {
@@ -111,31 +126,16 @@ export default function BookCard({ book, onToggleFavorite }: BookCardProps) {
     }
   }
 
-  // 处理长按 - 切换收藏
-  const handleLongPress = async () => {
-    console.log('📌 长按触发 - 切换收藏状态')
-    const newFavoriteState = !isFavorite
-    setIsFavorite(newFavoriteState)
-    
-    // 更新数据库 - 直接更新books表
-    const { error } = await supabase
-      .from('books')
-      .update({ is_favorite: newFavoriteState })
-      .eq('id', book.id)
-    
-    if (error) {
-      console.error('更新收藏状态失败:', error)
-      // 回滚状态
-      setIsFavorite(!newFavoriteState)
-    } else {
-      onToggleFavorite(book.id, newFavoriteState)
-    }
-  }
-
-  // 处理点击 - 打开阅读器
+  // 处理点击 - 多选模式下切换选中，普通模式下打开阅读器
   const handleClick = () => {
-    console.log('📖 点击触发 - 打开阅读器')
-    router.push(`/read/${book.id}`)
+    if (isMultiSelectMode && onSelect) {
+      // 多选模式：切换选中状态
+      onSelect(book.id)
+    } else {
+      // 普通模式：打开阅读器
+      console.log('📖 点击触发 - 打开阅读器')
+      router.push(`/read/${book.id}`)
+    }
   }
 
   // 清理计时器
@@ -168,28 +168,49 @@ export default function BookCard({ book, onToggleFavorite }: BookCardProps) {
       }}
     >
       {/* 封面图片 */}
-      <div className="relative w-full aspect-[2/3] rounded-xl overflow-hidden bg-gray-200 shadow-[0_4px_12px_rgba(0,0,0,0.08)] transition-all duration-300 group-hover:scale-105 group-hover:shadow-[0_12px_24px_rgba(0,0,0,0.15)] group-hover:-translate-y-1">
+      <div className={`
+        relative w-full aspect-[2/3] rounded-xl overflow-hidden bg-gray-200 
+        shadow-[0_4px_12px_rgba(0,0,0,0.08)] transition-all duration-300 
+        ${!isMultiSelectMode && 'group-hover:scale-105 group-hover:shadow-[0_12px_24px_rgba(0,0,0,0.15)] group-hover:-translate-y-1'}
+        ${isSelected ? 'ring-4 ring-blue-500' : ''}
+      `}>
         {book.cover_url ? (
           <Image
             src={book.cover_url}
             alt={book.title}
             fill
             className="object-cover"
-            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+            sizes="(max-width: 640px) 33vw, (max-width: 1024px) 25vw, 20vw"
             priority={false}
           />
         ) : (
           <div className="w-full h-full bg-gradient-to-br from-gray-300 to-gray-400 flex items-center justify-center">
-            <span className="text-4xl font-bold text-white/50">
+            <span className="text-2xl font-bold text-white/50">
               {book.title.charAt(0).toUpperCase()}
             </span>
           </div>
         )}
         
-        {/* 收藏爱心 */}
-        {isFavorite && (
+        {/* 多选模式 - 选中状态 */}
+        {isMultiSelectMode && (
+          <div className="absolute top-2 right-2 z-10">
+            <div className={`
+              w-6 h-6 rounded-full flex items-center justify-center
+              transition-all duration-200
+              ${isSelected 
+                ? 'bg-blue-500 scale-110' 
+                : 'bg-white/80 backdrop-blur-sm border-2 border-gray-300'
+              }
+            `}>
+              {isSelected && <Check size={16} className="text-white" />}
+            </div>
+          </div>
+        )}
+        
+        {/* 收藏爱心 - 非多选模式显示 */}
+        {!isMultiSelectMode && isFavorite && (
           <div className="absolute top-2 right-2 bg-white/90 backdrop-blur-sm rounded-full p-1.5 shadow-md">
-            <Heart size={16} className="text-red-500 fill-red-500" />
+            <Heart size={14} className="text-red-500 fill-red-500" />
           </div>
         )}
         
