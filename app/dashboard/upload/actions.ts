@@ -13,6 +13,7 @@ type UploadResult = {
   error?: string
   fileUrl?: string
   bookId?: string
+  logs?: string[]  // 服务器日志
 }
 
 /**

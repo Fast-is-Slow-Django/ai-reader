@@ -5,10 +5,12 @@ import JSZip from 'jszip'
  * @param arrayBuffer - EPUB文件的ArrayBuffer
  * @returns 封面图片的Buffer和MIME类型，如果没有封面则返回null
  */
-export async function extractEpubCover(arrayBuffer: ArrayBuffer): Promise<{ buffer: Buffer; mimeType: string } | null> {
+export async function extractEpubCover(arrayBuffer: ArrayBuffer): Promise<{ buffer: Uint8Array; mimeType: string } | null> {
   try {
+    console.log('[extractEpubCover] Starting extraction, buffer size:', arrayBuffer.byteLength)
     // 使用JSZip解析EPUB文件（EPUB本质上是ZIP文件）
     const zip = await JSZip.loadAsync(arrayBuffer)
+    console.log('[extractEpubCover] ZIP loaded successfully')
     
     // 1. 读取container.xml获取content.opf的位置
     const containerXml = await zip.file('META-INF/container.xml')?.async('text')
@@ -104,7 +106,7 @@ export async function extractEpubCover(arrayBuffer: ArrayBuffer): Promise<{ buff
       return null
     }
     
-    const coverData = await coverFile.async('nodebuffer')
+    const coverData = await coverFile.async('uint8array')
     
     // 根据文件扩展名确定MIME类型
     const ext = coverHref.split('.').pop()?.toLowerCase()
