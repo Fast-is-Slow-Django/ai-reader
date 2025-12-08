@@ -200,18 +200,26 @@ export default function ZenithBookshelf({ initialBooks, user }: ZenithBookshelfP
 
   // 切换书籍选中状态
   const handleToggleSelect = (bookId: string) => {
+    console.log(`🔧 handleToggleSelect called - bookId: ${bookId}`)
+    console.log(`📋 Current selectedBooks:`, Array.from(selectedBooks))
+    
     const newSelected = new Set(selectedBooks)
     if (newSelected.has(bookId)) {
+      console.log(`➖ Removing ${bookId}`)
       newSelected.delete(bookId)
     } else {
+      console.log(`➕ Adding ${bookId}`)
       newSelected.add(bookId)
     }
+    console.log(`📋 New selectedBooks:`, Array.from(newSelected))
     setSelectedBooks(newSelected)
   }
 
   // 批量添加收藏
   const handleBatchFavorite = async () => {
     const bookIds = Array.from(selectedBooks)
+    console.log(`❤️ Batch Favorite - Selected book IDs:`, bookIds)
+    console.log(`❤️ Total selected books:`, bookIds.length)
     
     // 乐观更新UI
     setBooks(prevBooks =>
