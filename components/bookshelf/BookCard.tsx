@@ -61,12 +61,6 @@ export default function BookCard({
 
   // 触摸/鼠标按下
   const handlePressStart = (e: React.TouchEvent | React.MouseEvent) => {
-    // 在多选模式下，直接点击选择，不需要长按
-    if (isMultiSelectMode && onSelect) {
-      onSelect(book.id)
-      return
-    }
-    
     isPressed.current = true
     setIsLongPress(false)
     
@@ -74,32 +68,46 @@ export default function BookCard({
     const pos = 'touches' in e ? e.touches[0] : e
     touchStartPos.current = { x: pos.clientX, y: pos.clientY }
     
-    // 启动长按计时器
-    longPressTimer.current = setTimeout(() => {
-      if (isPressed.current) {
-        // 触发长按
-        setIsLongPress(true)
-        
-        // 如果不在多选模式，则进入多选模式
-        if (!isMultiSelectMode && onLongPress) {
-          onLongPress(book.id)
-        }
-        
-        // 震动反馈（如果支持且用户已交互）
-        try {
-          if ('vibrate' in navigator) {
-            navigator.vibrate(50)
+    // 如果不在多选模式，启动长按计时器
+    if (!isMultiSelectMode) {
+      longPressTimer.current = setTimeout(() => {
+        if (isPressed.current) {
+          // 触发长按
+          setIsLongPress(true)
+          
+          // 进入多选模式
+          if (onLongPress) {
+            onLongPress(book.id)
           }
-        } catch (error) {
-          // 忽略振动错误
+          
+          // 震动反馈（如果支持且用户已交互）
+          try {
+            if ('vibrate' in navigator) {
+              navigator.vibrate(50)
+            }
+          } catch (error) {
+            // 忽略振动错误
+          }
         }
-      }
-    }, LONG_PRESS_DURATION)
+      }, LONG_PRESS_DURATION)
+    }
   }
 
   // 触摸/鼠标移动
   const handlePressMove = (e: React.TouchEvent | React.MouseEvent) => {
-    if (!isPressed.current || isMultiSelectMode) return
+    if (!isPressed.current) return
+    
+    // 在多选模式下，允许移动也能取消点击
+    if (isMultiSelectMode) {
+      const pos = 'touches' in e ? e.touches[0] : e
+      const deltaX = Math.abs(pos.clientX - touchStartPos.current.x)
+      const deltaY = Math.abs(pos.clientY - touchStartPos.current.y)
+      
+      if (deltaX > MOVE_THRESHOLD || deltaY > MOVE_THRESHOLD) {
+        isPressed.current = false
+      }
+      return
+    }
     
     const pos = 'touches' in e ? e.touches[0] : e
     const deltaX = Math.abs(pos.clientX - touchStartPos.current.x)
@@ -183,7 +191,7 @@ export default function BookCard({
         ${!isMultiSelectMode && 'group-hover:scale-105 group-hover:shadow-[0_12px_24px_rgba(0,0,0,0.15)] group-hover:-translate-y-1'}
         ${isSelected ? 'ring-4 ring-blue-500' : ''}
       `}>
-        {book.cover_url ? (
+        {book.cover_url && book.cover_url.trim() ? (
           <Image
             src={book.cover_url}
             alt={book.title}
@@ -191,14 +199,28 @@ export default function BookCard({
             className="object-cover"
             sizes="(max-width: 640px) 33vw, (max-width: 1024px) 25vw, 20vw"
             priority={false}
+            onError={(e) => {
+              // If image fails to load, hide it
+              e.currentTarget.style.display = 'none'
+            }}
           />
-        ) : (
-          <div className="w-full h-full bg-gradient-to-br from-gray-300 to-gray-400 flex items-center justify-center">
-            <span className="text-2xl font-bold text-white/50">
-              {book.title.charAt(0).toUpperCase()}
-            </span>
-          </div>
-        )}
+        ) : null}
+        
+        {/* Gradient placeholder - always show as background */}
+        <div 
+          className="absolute inset-0 w-full h-full flex items-center justify-center"
+          style={{
+            background: `linear-gradient(135deg, 
+              hsl(${book.title.charCodeAt(0) * 137.5 % 360}, 70%, 60%), 
+              hsl(${(book.title.charCodeAt(0) * 137.5 + 60) % 360}, 70%, 50%)
+            )`,
+            zIndex: book.cover_url && book.cover_url.trim() ? -1 : 0
+          }}
+        >
+          <span className="text-4xl md:text-5xl font-bold text-white/30">
+            {book.title.charAt(0).toUpperCase()}
+          </span>
+        </div>
         
         {/* 多选模式 - 选中状态 */}
         {isMultiSelectMode && (
