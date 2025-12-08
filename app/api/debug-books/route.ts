@@ -24,31 +24,17 @@ export async function GET() {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    // 测试每个文件 URL
-    const results = await Promise.all(
-      (books || []).map(async (book) => {
-        try {
-          const response = await fetch(book.file_url, { method: 'HEAD' })
-          return {
-            id: book.id,
-            title: book.title,
-            file_url: book.file_url,
-            status: response.status,
-            accessible: response.ok,
-            cors: response.headers.get('access-control-allow-origin'),
-          }
-        } catch (err: any) {
-          return {
-            id: book.id,
-            title: book.title,
-            file_url: book.file_url,
-            status: 'error',
-            accessible: false,
-            error: err.message,
-          }
-        }
-      })
-    )
+    // 显示每本书的详细信息，包括封面URL
+    const results = (books || []).map((book) => ({
+      id: book.id,
+      title: book.title,
+      author: book.author || null,
+      cover_url: book.cover_url || null,
+      file_url: book.file_url,
+      metadata: book.metadata || null,
+      created_at: book.created_at,
+      has_cover: !!book.cover_url,
+    }))
 
     return NextResponse.json({
       user: user.email,
