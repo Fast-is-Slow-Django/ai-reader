@@ -145,12 +145,14 @@ export default function BookCard({
 
   // 处理点击 - 多选模式下切换选中，普通模式下打开阅读器
   const handleClick = () => {
+    console.log('👆 Click detected - MultiSelect:', isMultiSelectMode, 'Book:', book.title)
     if (isMultiSelectMode && onSelect) {
       // 多选模式：切换选中状态
+      console.log('✅ Toggling selection for:', book.title)
       onSelect(book.id)
     } else {
       // 普通模式：打开阅读器
-      console.log('📖 点击触发 - 打开阅读器')
+      console.log('📖 Opening reader for:', book.title)
       router.push(`/read/${book.id}`)
     }
   }

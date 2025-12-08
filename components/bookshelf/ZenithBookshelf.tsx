@@ -193,11 +193,21 @@ export default function ZenithBookshelf({ initialBooks, user }: ZenithBookshelfP
 
     // 更新数据库
     for (const bookId of bookIds) {
-      await supabase
+      const { error } = await supabase
         .from('books')
         .update({ is_favorite: true })
         .eq('id', bookId)
         .eq('user_id', user.id)
+      
+      if (error) {
+        console.error('Failed to favorite book:', bookId, error)
+        // 回滚 UI
+        setBooks(prevBooks =>
+          prevBooks.map(book =>
+            book.id === bookId ? { ...book, is_favorite: false } : book
+          )
+        )
+      }
     }
 
     handleExitMultiSelect()
