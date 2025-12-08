@@ -174,13 +174,17 @@ export async function uploadEpub(formData: FormData): Promise<UploadResult> {
     // 12. 提取并上传封面
     let coverUrl: string | null = null
     try {
+      console.log('📸 Starting cover extraction...')
       const { extractEpubCover, generateCoverFileName } = await import('@/utils/extractEpubCover')
       const coverData = await extractEpubCover(fileArrayBuffer)
       
       if (coverData) {
+        console.log(`✓ Cover extracted: ${coverData.mimeType}, size: ${coverData.buffer.length} bytes`)
+        
         // 上传封面到Supabase Storage
         const coverFileName = generateCoverFileName(filePath.replace('.epub', ''), coverData.mimeType)
         const coverPath = `${user.id}/covers/${coverFileName}`
+        console.log(`📤 Uploading cover to: ${coverPath}`)
         
         const { error: coverUploadError } = await supabase.storage
           .from('user_books')
@@ -196,15 +200,15 @@ export async function uploadEpub(formData: FormData): Promise<UploadResult> {
             .getPublicUrl(coverPath)
           
           coverUrl = coverUrlData.publicUrl
-          console.log('Cover extracted and uploaded:', coverUrl)
+          console.log('✅ Cover uploaded successfully:', coverUrl)
         } else {
-          console.error('Failed to upload cover:', coverUploadError)
+          console.error('❌ Failed to upload cover:', coverUploadError)
         }
       } else {
-        console.log('No cover found in EPUB')
+        console.log('⚠️ No cover found in EPUB')
       }
     } catch (error) {
-      console.error('Cover extraction error:', error)
+      console.error('❌ Cover extraction error:', error)
       // 继续创建书籍记录，即使封面提取失败
     }
     
