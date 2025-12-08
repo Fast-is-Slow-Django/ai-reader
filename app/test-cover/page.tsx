@@ -83,19 +83,40 @@ export default function TestCoverPage() {
         }
       }
 
-      // 方法3：查找常见封面文件名
+      // 方法3：在所有文件中查找包含"cover"的图片文件
       if (!coverHref) {
-        addLog('尝试方法3: 查找常见封面文件名')
-        const commonCoverNames = ['cover.jpg', 'cover.jpeg', 'cover.png', 'cover.gif', 'cover.webp']
+        addLog('尝试方法3: 查找包含"cover"的图片文件')
         const allFiles = Object.keys(zip.files)
         addLog(`EPUB中的所有文件 (${allFiles.length}个):`)
-        allFiles.slice(0, 20).forEach(f => addLog(`  - ${f}`))
+        allFiles.slice(0, 30).forEach(f => addLog(`  - ${f}`))
+        
+        const coverFiles = allFiles.filter(f => {
+          const lower = f.toLowerCase()
+          return (lower.includes('cover') || lower.includes('mycoverimage')) && 
+                 (lower.endsWith('.jpg') || lower.endsWith('.jpeg') || 
+                  lower.endsWith('.png') || lower.endsWith('.gif') || lower.endsWith('.webp'))
+        })
+        
+        if (coverFiles.length > 0) {
+          addLog(`找到 ${coverFiles.length} 个可能的封面文件:`)
+          coverFiles.forEach(f => addLog(`  - ${f}`))
+          // 优先选择最短的路径
+          coverHref = coverFiles.sort((a, b) => a.length - b.length)[0]
+          addLog(`✓ 方法3成功: ${coverHref}`)
+        }
+      }
+      
+      // 方法4：查找常见封面文件名（精确匹配）
+      if (!coverHref) {
+        addLog('尝试方法4: 精确匹配常见封面文件名')
+        const commonCoverNames = ['cover.jpg', 'cover.jpeg', 'cover.png', 'cover.gif']
+        const allFiles = Object.keys(zip.files)
         
         for (const name of commonCoverNames) {
-          const files = allFiles.filter(f => f.toLowerCase().includes(name))
+          const files = allFiles.filter(f => f.toLowerCase().endsWith(name))
           if (files.length > 0) {
             coverHref = files[0]
-            addLog(`✓ 方法3成功: ${coverHref}`)
+            addLog(`✓ 方法4成功: ${coverHref}`)
             break
           }
         }

@@ -39,7 +39,11 @@ export async function extractEpubCover(arrayBuffer: ArrayBuffer): Promise<{ buff
     const coverMetaMatch = contentOpf.match(/<meta\s+name="cover"\s+content="([^"]+)"/)
     if (coverMetaMatch) {
       const coverId = coverMetaMatch[1]
-      const itemMatch = contentOpf.match(new RegExp(`<item[^>]+id="${coverId}"[^>]+href="([^"]+)"`))
+      // 尝试两种item标签格式：id在前或href在前
+      let itemMatch = contentOpf.match(new RegExp(`<item[^>]+id="${coverId}"[^>]+href="([^"]+)"`))
+      if (!itemMatch) {
+        itemMatch = contentOpf.match(new RegExp(`<item[^>]+href="([^"]+)"[^>]+id="${coverId}"`))
+      }
       if (itemMatch) {
         coverHref = itemMatch[1]
       }
@@ -53,11 +57,27 @@ export async function extractEpubCover(arrayBuffer: ArrayBuffer): Promise<{ buff
       }
     }
     
-    // 方法3：查找常见的封面文件名
+    // 方法3：在所有文件中查找包含"cover"的图片文件
+    if (!coverHref) {
+      const allFiles = Object.keys(zip.files)
+      const coverFiles = allFiles.filter(f => {
+        const lower = f.toLowerCase()
+        return (lower.includes('cover') || lower.includes('mycoverimage')) && 
+               (lower.endsWith('.jpg') || lower.endsWith('.jpeg') || 
+                lower.endsWith('.png') || lower.endsWith('.gif') || lower.endsWith('.webp'))
+      })
+      if (coverFiles.length > 0) {
+        // 优先选择最短的路径（通常是真正的封面）
+        coverHref = coverFiles.sort((a, b) => a.length - b.length)[0]
+      }
+    }
+    
+    // 方法4：查找常见的封面文件名（精确匹配）
     if (!coverHref) {
       const commonCoverNames = ['cover.jpg', 'cover.jpeg', 'cover.png', 'cover.gif']
+      const allFiles = Object.keys(zip.files)
       for (const name of commonCoverNames) {
-        const files = Object.keys(zip.files).filter(f => f.toLowerCase().includes(name))
+        const files = allFiles.filter(f => f.toLowerCase().endsWith(name))
         if (files.length > 0) {
           coverHref = files[0]
           break
