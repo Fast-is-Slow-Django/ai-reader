@@ -40,11 +40,7 @@ export default function BookCard({
   const supabase = createClient()
   
   // Debug: log selection state
-  useEffect(() => {
-    if (isMultiSelectMode) {
-      console.log(`📦 ${book.title.substring(0, 20)}: isSelected=${isSelected}`)
-    }
-  }, [isSelected, isMultiSelectMode, book.title])
+  // isSelected状态更新会自动重新渲染，不需要额外日志
   
   const [isLongPress, setIsLongPress] = useState(false)
   const [isFavorite, setIsFavorite] = useState(book.metadata?.favorite || false)
@@ -73,7 +69,6 @@ export default function BookCard({
 
   // 触摸/鼠标按下
   const handlePressStart = (e: React.TouchEvent | React.MouseEvent) => {
-    console.log(`🔽 Press Start - Book: ${book.title.substring(0, 20)}, MultiSelect: ${isMultiSelectMode}`)
     isPressed.current = true
     setIsLongPress(false)
     
@@ -138,17 +133,13 @@ export default function BookCard({
     e.stopPropagation()
     
     const wasLongPress = isLongPress
-    console.log(`🔼 Press End - Book: ${book.title.substring(0, 20)}, wasLongPress: ${wasLongPress}, isPressed: ${isPressed.current}, MultiSelect: ${isMultiSelectMode}`)
     
     // 清理状态
     cancelLongPress()
     
     // 如果不是长按，执行点击
     if (!wasLongPress && isPressed.current) {
-      console.log(`✅ Triggering click for ${book.title.substring(0, 20)}`)
       handleClick()
-    } else {
-      console.log(`❌ Click blocked - wasLongPress: ${wasLongPress}, isPressed: ${isPressed.current}`)
     }
     
     isPressed.current = false
@@ -165,14 +156,11 @@ export default function BookCard({
 
   // 处理点击 - 多选模式下切换选中，普通模式下打开阅读器
   const handleClick = () => {
-    console.log(`👆 handleClick - Book: ${book.title.substring(0, 20)}, MultiSelect: ${isMultiSelectMode}, isSelected: ${isSelected}`)
     if (isMultiSelectMode && onSelect) {
       // 多选模式：切换选中状态
-      console.log(`🔄 Toggling selection`)
       onSelect(book.id)
     } else {
       // 普通模式：打开阅读器
-      console.log(`📖 Opening reader`)
       router.push(`/read/${book.id}`)
     }
   }
