@@ -92,10 +92,13 @@ export async function POST(req: Request) {
     console.log('✅ API Key 已找到，长度:', apiKey.length)
 
     // 4. 使用 Google Generative AI SDK
-    const genAI = new GoogleGenerativeAI(apiKey)
-    const model = genAI.getGenerativeModel({ 
-      model: 'gemini-2.0-flash',
-      systemInstruction: `You are a language teaching expert specializing in the "i+1" (Comprehensible Input) method.
+    let finalText = ''
+    
+    try {
+      const genAI = new GoogleGenerativeAI(apiKey)
+      const model = genAI.getGenerativeModel({ 
+        model: 'gemini-2.0-flash',
+        systemInstruction: `You are a language teaching expert specializing in the "i+1" (Comprehensible Input) method.
 Your task is to explain the target word or phrase to a learner using SIMPLE English.
 
 Rules:
@@ -113,67 +116,123 @@ Examples:
 [Example Sentence 2]
 
 [Example Sentence 3]`
-    })
+      })
 
-    const prompt = `Context: "${context}"\n\nTarget Word: "${text}"`
-    
-    console.log('🚀 开始生成...')
-    const result = await model.generateContent(prompt)
-    const response = result.response
-    const finalText = response.text()
-
-    console.log('✅ AI 生成完成')
-    console.log('📝 生成的文本:', finalText)
-    console.log('📊 使用统计:', response.usageMetadata)
+      const prompt = `Context: "${context}"\n\nTarget Word: "${text}"`
+      
+      console.log('🚀 开始生成...')
+      const result = await model.generateContent(prompt)
+      const response = result.response
+      finalText = response.text()
+      
+      console.log('✅ AI 生成完成')
+      console.log('📝 生成的文本:', finalText)
+      console.log('📊 使用统计:', response.usageMetadata)
+    } catch (geminiError: any) {
+      console.error('❌ Gemini API 调用失败:', geminiError)
+      console.error('错误类型:', geminiError?.name)
+      console.error('错误信息:', geminiError?.message)
+      console.error('错误详情:', JSON.stringify(geminiError?.errorDetails || {}))
+      
+      // 返回更具体的错误信息
+      if (geminiError?.message?.includes('API key')) {
+        return new Response(
+          JSON.stringify({ 
+            error: 'API Key Error',
+            message: 'Google AI API key is invalid or expired'
+          }), 
+          { 
+            status: 500,
+            headers: { 'Content-Type': 'application/json' }
+          }
+        )
+      }
+      
+      // 重新抛出错误让外层catch处理
+      throw geminiError
+    }
 
     // 5. 保存到词汇缓存
     if (bookId) {
-      // 生成上下文哈希
-      const contextData = `${text}|${context}`
-      let hash = 0
-      for (let i = 0; i < contextData.length; i++) {
-        const char = contextData.charCodeAt(i)
-        hash = ((hash << 5) - hash) + char
-        hash = hash & hash
-      }
-      const contextHash = hash.toString(36)
+      try {
+        // 生成上下文哈希
+        const contextData = `${text}|${context}`
+        let hash = 0
+        for (let i = 0; i < contextData.length; i++) {
+          const char = contextData.charCodeAt(i)
+          hash = ((hash << 5) - hash) + char
+          hash = hash & hash
+        }
+        const contextHash = hash.toString(36)
 
-      if (forceRefresh) {
-        // 强制刷新：更新或插入
-        console.log('🔄 更新缓存（强制刷新）')
-        await supabase
-          .from('vocabulary_cache')
-          .upsert({
-            user_id: user.id,
-            book_id: bookId,
-            context_hash: contextHash,
-            selected_text: text,
-            context,
-            ai_explanation: finalText,
-            accessed_count: 1,
-            last_accessed_at: new Date().toISOString(),
-          }, {
-            onConflict: 'user_id,book_id,context_hash'
-          })
-        
-        console.log('✅ 已更新缓存（强制刷新）')
-      } else {
-        // 正常保存：只插入新记录
-        await supabase
-          .from('vocabulary_cache')
-          .insert({
-            user_id: user.id,
-            book_id: bookId,
-            selected_text: text,
-            context,
-            context_hash: contextHash,
-            ai_explanation: finalText,
-            created_at: new Date().toISOString(),
-            accessed_count: 1,
-            last_accessed_at: new Date().toISOString(),
-          })
-        
-        console.log('✅ 已保存到词汇缓存')
+        if (forceRefresh) {
+          // 强制刷新：先尝试删除旧记录，再插入新记录
+          console.log('🔄 更新缓存（强制刷新）')
+          
+          // 先删除旧记录（忽略删除错误，因为记录可能不存在）
+          const { error: deleteError } = await supabase
+            .from('vocabulary_cache')
+            .delete()
+            .eq('user_id', user.id)
+            .eq('book_id', bookId)
+            .eq('context_hash', contextHash)
+          
+          if (deleteError) {
+            console.log('⚠️ 删除旧缓存记录时出现问题（可忽略）:', deleteError.message)
+          }
+          
+          // 插入新记录
+          const { error: insertError } = await supabase
+            .from('vocabulary_cache')
+            .insert({
+              user_id: user.id,
+              book_id: bookId,
+              selected_text: text,
+              context,
+              context_hash: contextHash,
+              ai_explanation: finalText,
+              created_at: new Date().toISOString(),
+              accessed_count: 1,
+              last_accessed_at: new Date().toISOString(),
+            })
+          
+          if (insertError) {
+            console.error('❌ 保存缓存失败:', insertError)
+            // 继续执行，不影响返回AI结果
+          } else {
+            console.log('✅ 已更新缓存（强制刷新）')
+          }
+        } else {
+          // 正常保存：只插入新记录
+          const { error: insertError } = await supabase
+            .from('vocabulary_cache')
+            .insert({
+              user_id: user.id,
+              book_id: bookId,
+              selected_text: text,
+              context,
+              context_hash: contextHash,
+              ai_explanation: finalText,
+              created_at: new Date().toISOString(),
+              accessed_count: 1,
+              last_accessed_at: new Date().toISOString(),
+            })
+          
+          if (insertError) {
+            // 如果是重复键错误，忽略（说明已有缓存）
+            if (insertError.code === '23505') {
+              console.log('⚠️ 缓存已存在，跳过保存')
+            } else {
+              console.error('❌ 保存缓存失败:', insertError)
+            }
+            // 继续执行，不影响返回AI结果
+          } else {
+            console.log('✅ 已保存到词汇缓存')
+          }
+        }
+      } catch (cacheError) {
+        // 缓存操作失败不应影响主功能
+        console.error('⚠️ 缓存操作失败，但不影响AI解释:', cacheError)
       }
     }
 
