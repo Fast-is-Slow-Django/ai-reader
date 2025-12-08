@@ -51,6 +51,7 @@ export default function BookCard({
   const longPressTimer = useRef<NodeJS.Timeout | null>(null)
   const touchStartPos = useRef({ x: 0, y: 0 })
   const isPressed = useRef(false)
+  const lastClickTime = useRef(0)  // 防止重复点击
   
   // 长按时长（毫秒）
   const LONG_PRESS_DURATION = 500
@@ -165,6 +166,14 @@ export default function BookCard({
 
   // 处理点击 - 多选模式下切换选中，普通模式下打开阅读器
   const handleClick = () => {
+    // 防抖：防止 touch 和 mouse 事件重复触发
+    const now = Date.now()
+    if (now - lastClickTime.current < 300) {
+      console.log(`⏭️ Click ignored - too soon (${now - lastClickTime.current}ms)`)
+      return
+    }
+    lastClickTime.current = now
+    
     console.log(`👆 handleClick - Book: ${book.title.substring(0, 20)}, MultiSelect: ${isMultiSelectMode}, isSelected: ${isSelected}`)
     if (isMultiSelectMode && onSelect) {
       // 多选模式：切换选中状态
