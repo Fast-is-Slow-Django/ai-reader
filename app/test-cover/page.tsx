@@ -84,6 +84,7 @@ export default function TestCoverPage() {
       }
 
       // 方法3：在所有文件中查找包含"cover"的图片文件
+      let isAbsolutePath = false
       if (!coverHref) {
         addLog('尝试方法3: 查找包含"cover"的图片文件')
         const allFiles = Object.keys(zip.files)
@@ -102,6 +103,7 @@ export default function TestCoverPage() {
           coverFiles.forEach(f => addLog(`  - ${f}`))
           // 优先选择最短的路径
           coverHref = coverFiles.sort((a, b) => a.length - b.length)[0]
+          isAbsolutePath = true // 方法3返回的是绝对路径
           addLog(`✓ 方法3成功: ${coverHref}`)
         }
       }
@@ -116,6 +118,7 @@ export default function TestCoverPage() {
           const files = allFiles.filter(f => f.toLowerCase().endsWith(name))
           if (files.length > 0) {
             coverHref = files[0]
+            isAbsolutePath = true // 方法4返回的也是绝对路径
             addLog(`✓ 方法4成功: ${coverHref}`)
             break
           }
@@ -123,12 +126,13 @@ export default function TestCoverPage() {
       }
 
       if (!coverHref) {
-        throw new Error('未找到封面图片（尝试了3种方法）')
+        throw new Error('未找到封面图片（尝试了4种方法）')
       }
 
       // 提取封面
+      // 方法1和2返回相对路径，方法3和4返回绝对路径
       const opfDir = contentOpfPath.substring(0, contentOpfPath.lastIndexOf('/') + 1)
-      const fullCoverPath = opfDir + coverHref
+      const fullCoverPath = isAbsolutePath ? coverHref : (opfDir + coverHref)
       addLog(`完整封面路径: ${fullCoverPath}`)
 
       const coverFile = zip.file(fullCoverPath)

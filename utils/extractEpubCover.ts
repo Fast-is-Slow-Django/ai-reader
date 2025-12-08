@@ -58,6 +58,7 @@ export async function extractEpubCover(arrayBuffer: ArrayBuffer): Promise<{ buff
     }
     
     // 方法3：在所有文件中查找包含"cover"的图片文件
+    let isAbsolutePath = false
     if (!coverHref) {
       const allFiles = Object.keys(zip.files)
       const coverFiles = allFiles.filter(f => {
@@ -69,6 +70,7 @@ export async function extractEpubCover(arrayBuffer: ArrayBuffer): Promise<{ buff
       if (coverFiles.length > 0) {
         // 优先选择最短的路径（通常是真正的封面）
         coverHref = coverFiles.sort((a, b) => a.length - b.length)[0]
+        isAbsolutePath = true // 方法3返回的是绝对路径
       }
     }
     
@@ -80,6 +82,7 @@ export async function extractEpubCover(arrayBuffer: ArrayBuffer): Promise<{ buff
         const files = allFiles.filter(f => f.toLowerCase().endsWith(name))
         if (files.length > 0) {
           coverHref = files[0]
+          isAbsolutePath = true // 方法4返回的也是绝对路径
           break
         }
       }
@@ -91,9 +94,9 @@ export async function extractEpubCover(arrayBuffer: ArrayBuffer): Promise<{ buff
     }
     
     // 4. 提取封面图片
-    // 处理相对路径
+    // 处理相对路径（方法1和2返回相对路径，方法3和4返回绝对路径）
     const opfDir = contentOpfPath.substring(0, contentOpfPath.lastIndexOf('/') + 1)
-    const fullCoverPath = opfDir + coverHref
+    const fullCoverPath = isAbsolutePath ? coverHref : (opfDir + coverHref)
     
     const coverFile = zip.file(fullCoverPath)
     if (!coverFile) {
