@@ -2,54 +2,98 @@
 
 import { useState, useRef } from 'react'
 import { createClient } from '@/utils/supabase/client'
-import { createBookRecord } from '@/app/dashboard/actions'
 import { Upload, Plus, Loader2, CheckCircle2 } from 'lucide-react'
+import JSZip from 'jszip'
+import { useRouter } from 'next/navigation'
 
 /**
- * 书籍上传组件
- * 
- * 功能：
- * 1. 点击卡片触发文件选择
- * 2. 上传到 Supabase Storage
- * 3. 创建数据库记录
- * 4. 自动刷新页面
- * 
- * 使用：
- * ```tsx
- * import BookUploader from '@/components/dashboard/BookUploader'
- * 
- * <BookUploader />
- * ```
+ * 客户端提取 EPUB 封面
  */
+async function extractCover(file: File): Promise<Blob | null> {
+  try {
+    const arrayBuffer = await file.arrayBuffer()
+    const zip = await JSZip.loadAsync(arrayBuffer)
+
+    const containerXml = await zip.file('META-INF/container.xml')?.async('text')
+    if (!containerXml) return null
+
+    const rootfileMatch = containerXml.match(/full-path="([^"]+)"/)
+    if (!rootfileMatch) return null
+
+    const contentOpfPath = rootfileMatch[1]
+    const contentOpf = await zip.file(contentOpfPath)?.async('text')
+    if (!contentOpf) return null
+
+    let coverHref: string | null = null
+    let isAbsolutePath = false
+
+    // 方法1: meta标签
+    const coverMetaMatch = contentOpf.match(/<meta\s+name="cover"\s+content="([^"]+)"/)
+    if (coverMetaMatch) {
+      const coverId = coverMetaMatch[1]
+      let itemMatch = contentOpf.match(new RegExp(`<item[^>]+id="${coverId}"[^>]+href="([^"]+)"`))
+      if (!itemMatch) {
+        itemMatch = contentOpf.match(new RegExp(`<item[^>]+href="([^"]+)"[^>]+id="${coverId}"`))
+      }
+      if (itemMatch) coverHref = itemMatch[1]
+    }
+
+    // 方法2: properties
+    if (!coverHref) {
+      const coverImageMatch = contentOpf.match(/<item[^>]+properties="cover-image"[^>]+href="([^"]+)"/)
+      if (coverImageMatch) coverHref = coverImageMatch[1]
+    }
+
+    // 方法3: 搜索包含cover的图片
+    if (!coverHref) {
+      const allFiles = Object.keys(zip.files)
+      const coverFiles = allFiles.filter(f => {
+        const lower = f.toLowerCase()
+        return (lower.includes('cover') || lower.includes('mycoverimage')) &&
+          (lower.endsWith('.jpg') || lower.endsWith('.jpeg') ||
+            lower.endsWith('.png') || lower.endsWith('.gif') || lower.endsWith('.webp'))
+      })
+      if (coverFiles.length > 0) {
+        coverHref = coverFiles.sort((a, b) => a.length - b.length)[0]
+        isAbsolutePath = true
+      }
+    }
+
+    if (!coverHref) return null
+
+    const opfDir = contentOpfPath.substring(0, contentOpfPath.lastIndexOf('/') + 1)
+    const fullCoverPath = isAbsolutePath ? coverHref : (opfDir + coverHref)
+
+    const coverFile = zip.file(fullCoverPath)
+    if (!coverFile) return null
+
+    return await coverFile.async('blob')
+  } catch (error) {
+    console.error('封面提取失败:', error)
+    return null
+  }
+}
+
 export default function BookUploader() {
   const [uploading, setUploading] = useState(false)
   const [progress, setProgress] = useState<string>('')
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const router = useRouter()
 
-  /**
-   * 处理文件上传
-   */
   async function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0]
-    
     if (!file) return
 
-    // 验证文件类型
     if (!file.name.toLowerCase().endsWith('.epub')) {
       alert('只支持 EPUB 格式的电子书')
-      if (fileInputRef.current) {
-        fileInputRef.current.value = ''
-      }
+      if (fileInputRef.current) fileInputRef.current.value = ''
       return
     }
 
-    // 验证文件大小（50MB）
     const maxSize = 50 * 1024 * 1024
     if (file.size > maxSize) {
       alert(`文件大小不能超过 50MB\n当前文件：${(file.size / 1024 / 1024).toFixed(2)}MB`)
-      if (fileInputRef.current) {
-        fileInputRef.current.value = ''
-      }
+      if (fileInputRef.current) fileInputRef.current.value = ''
       return
     }
 
@@ -57,17 +101,15 @@ export default function BookUploader() {
   }
 
   /**
-   * 上传书籍到 Storage 并创建数据库记录
+   * 客户端上传：提取封面 + 上传
    */
   async function uploadBook(file: File) {
     try {
       setUploading(true)
       setProgress('准备上传...')
 
-      // 1. 创建 Supabase 客户端
       const supabase = createClient()
 
-      // 2. 获取当前用户
       const {
         data: { user },
         error: userError,
@@ -77,18 +119,24 @@ export default function BookUploader() {
         throw new Error('请先登录')
       }
 
+      // 客户端提取封面
+      setProgress('正在提取封面...')
+      const coverBlob = await extractCover(file)
+      if (coverBlob) {
+        console.log('✅ 封面提取成功')
+      } else {
+        console.log('⚠️ 未找到封面')
+      }
+
       setProgress('正在上传文件...')
 
-      // 3. 生成唯一文件名（简洁格式，避免特殊字符）
       const timestamp = Date.now()
       const randomStr = Math.random().toString(36).substring(2, 8)
       const fileName = `${user.id}-${timestamp}-${randomStr}.epub`
-
-      // 4. 构建 Storage 路径：user_id/fileName
       const filePath = `${user.id}/${fileName}`
 
-      // 5. 上传文件到 Storage
-      const { data: uploadData, error: uploadError } = await supabase.storage
+      // 上传 EPUB
+      const { error: uploadError } = await supabase.storage
         .from('user_books')
         .upload(filePath, file, {
           cacheControl: '3600',
@@ -96,52 +144,73 @@ export default function BookUploader() {
         })
 
       if (uploadError) {
-        console.error('上传失败:', uploadError)
         throw new Error(uploadError.message || '上传文件失败')
       }
 
-      setProgress('获取文件链接...')
-
-      // 6. 获取文件的公开 URL
-      const {
-        data: { publicUrl },
-      } = supabase.storage.from('user_books').getPublicUrl(filePath)
+      const { data: { publicUrl } } = supabase.storage
+        .from('user_books')
+        .getPublicUrl(filePath)
 
       if (!publicUrl) {
-        // 如果无法获取 URL，删除已上传的文件
         await supabase.storage.from('user_books').remove([filePath])
         throw new Error('获取文件链接失败')
       }
 
+      // 上传封面（如果有）
+      let coverUrl: string | null = null
+      if (coverBlob) {
+        setProgress('正在上传封面...')
+        const coverFileName = `${fileName.replace('.epub', '_cover.jpg')}`
+        const coverPath = `${user.id}/covers/${coverFileName}`
+
+        const { error: coverError } = await supabase.storage
+          .from('user_books')
+          .upload(coverPath, coverBlob, {
+            contentType: coverBlob.type,
+            upsert: true
+          })
+
+        if (!coverError) {
+          const { data: coverUrlData } = supabase.storage
+            .from('user_books')
+            .getPublicUrl(coverPath)
+          coverUrl = coverUrlData.publicUrl
+          console.log('✅ 封面上传成功:', coverUrl)
+        }
+      }
+
       setProgress('保存书籍信息...')
 
-      // 7. 从文件名提取书名（去掉时间戳和随机字符串）
       const bookTitle = file.name.replace(/\.epub$/i, '')
 
-      // 8. 调用 Server Action 创建数据库记录
-      const result = await createBookRecord(publicUrl, bookTitle, filePath)
+      // 直接创建数据库记录（不用Server Action）
+      const { error: dbError } = await supabase
+        .from('books')
+        .insert({
+          user_id: user.id,
+          title: bookTitle,
+          file_url: publicUrl,
+          cover_url: coverUrl,
+        })
 
-      if (!result.success) {
-        // 数据库记录创建失败，删除已上传的文件
+      if (dbError) {
         await supabase.storage.from('user_books').remove([filePath])
-        throw new Error(result.error || '保存书籍信息失败')
+        throw new Error(dbError.message || '保存书籍信息失败')
       }
 
       setProgress('上传成功！')
 
-      // 9. 成功提示
       alert(`《${bookTitle}》上传成功！`)
 
-      // 10. 重置状态
-      setTimeout(() => {
-        setUploading(false)
-        setProgress('')
-        if (fileInputRef.current) {
-          fileInputRef.current.value = ''
-        }
-      }, 1000)
-
-      // 注意：不需要手动刷新，createBookRecord 已调用 revalidatePath
+      // 重置状态并刷新页面
+      setUploading(false)
+      setProgress('')
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
+      
+      // 刷新书架
+      router.refresh()
     } catch (error) {
       console.error('上传书籍时发生错误:', error)
       
