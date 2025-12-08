@@ -91,8 +91,7 @@ export default function ProfileDropdown({ user }: ProfileDropdownProps) {
             <button
               onClick={() => {
                 setIsOpen(false)
-                // TODO: 实现设置页面
-                console.log('打开设置')
+                router.push('/settings')
               }}
               className="w-full flex items-center px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
             >
