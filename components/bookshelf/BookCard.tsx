@@ -34,6 +34,13 @@ export default function BookCard({
   const router = useRouter()
   const supabase = createClient()
   
+  // Debug: log selection state
+  useEffect(() => {
+    if (isMultiSelectMode) {
+      console.log(`📦 ${book.title.substring(0, 20)}: isSelected=${isSelected}`)
+    }
+  }, [isSelected, isMultiSelectMode, book.title])
+  
   const [isLongPress, setIsLongPress] = useState(false)
   const [isFavorite, setIsFavorite] = useState(book.is_favorite || false)
   const longPressTimer = useRef<NodeJS.Timeout | null>(null)
@@ -145,14 +152,11 @@ export default function BookCard({
 
   // 处理点击 - 多选模式下切换选中，普通模式下打开阅读器
   const handleClick = () => {
-    console.log('👆 Click detected - MultiSelect:', isMultiSelectMode, 'Book:', book.title)
     if (isMultiSelectMode && onSelect) {
       // 多选模式：切换选中状态
-      console.log('✅ Toggling selection for:', book.title)
       onSelect(book.id)
     } else {
       // 普通模式：打开阅读器
-      console.log('📖 Opening reader for:', book.title)
       router.push(`/read/${book.id}`)
     }
   }
@@ -191,7 +195,7 @@ export default function BookCard({
         relative w-full aspect-[2/3] rounded-xl overflow-hidden bg-gray-200 
         shadow-[0_4px_12px_rgba(0,0,0,0.08)] transition-all duration-300 
         ${!isMultiSelectMode && 'group-hover:scale-105 group-hover:shadow-[0_12px_24px_rgba(0,0,0,0.15)] group-hover:-translate-y-1'}
-        ${isSelected ? 'ring-4 ring-blue-500' : ''}
+        ${isSelected ? 'ring-4 ring-blue-500 ring-inset' : ''}
       `}>
         {book.cover_url && book.cover_url.trim() ? (
           <Image

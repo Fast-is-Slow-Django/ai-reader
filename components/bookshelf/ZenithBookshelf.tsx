@@ -71,7 +71,7 @@ export default function ZenithBookshelf({ initialBooks, user }: ZenithBookshelfP
         const progress = calculateProgress(book)
         matchesCategory = progress > 0 && progress < 100
       } else if (activeCategory === 'Favorites') {
-        matchesCategory = book.is_favorite === true
+        matchesCategory = book.favorite === true || book.is_favorite === true
       }
       
       // 搜索筛选
@@ -152,7 +152,7 @@ export default function ZenithBookshelf({ initialBooks, user }: ZenithBookshelfP
   const handleToggleFavorite = (bookId: string, isFavorite: boolean) => {
     setBooks(prevBooks => 
       prevBooks.map(book => 
-        book.id === bookId ? { ...book, is_favorite: isFavorite } : book
+        book.id === bookId ? { ...book, favorite: isFavorite, is_favorite: isFavorite } : book
       )
     )
   }
@@ -187,15 +187,15 @@ export default function ZenithBookshelf({ initialBooks, user }: ZenithBookshelfP
     // 乐观更新UI
     setBooks(prevBooks =>
       prevBooks.map(book =>
-        bookIds.includes(book.id) ? { ...book, is_favorite: true } : book
+        bookIds.includes(book.id) ? { ...book, favorite: true, is_favorite: true } : book
       )
     )
 
-    // 更新数据库
+    // 更新数据库 - 尝试两种字段名
     for (const bookId of bookIds) {
       const { error } = await supabase
         .from('books')
-        .update({ is_favorite: true })
+        .update({ favorite: true })
         .eq('id', bookId)
         .eq('user_id', user.id)
       
@@ -204,7 +204,7 @@ export default function ZenithBookshelf({ initialBooks, user }: ZenithBookshelfP
         // 回滚 UI
         setBooks(prevBooks =>
           prevBooks.map(book =>
-            book.id === bookId ? { ...book, is_favorite: false } : book
+            book.id === bookId ? { ...book, favorite: false, is_favorite: false } : book
           )
         )
       }
