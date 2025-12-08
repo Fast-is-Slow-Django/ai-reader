@@ -50,11 +50,7 @@ export default async function DashboardPage() {
     last_read_at: book.last_read_at
   }))
 
-  return (
-    <div className="h-screen">
-      <ZenithBookshelf initialBooks={booksList} user={user} />
-    </div>
-  )
+  return <ZenithBookshelf initialBooks={booksList} user={user} />
 }
 
 
