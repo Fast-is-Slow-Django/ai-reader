@@ -154,7 +154,7 @@ export default function ZenithBookshelf({ initialBooks, user }: ZenithBookshelfP
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#F5F5F7] text-[#1D1D1F] select-none">
+    <div className="h-screen flex flex-col bg-[#F5F5F7] text-[#1D1D1F] select-none overflow-hidden">
       
       {/* Header - 固定顶部 */}
       <header className="flex-none px-6 py-4 z-50">
@@ -208,21 +208,22 @@ export default function ZenithBookshelf({ initialBooks, user }: ZenithBookshelfP
 
       {/* 主内容区 - 横向滑动 */}
       <main 
-        className="flex-1 relative w-full overflow-hidden min-h-[calc(100vh-200px)]"
-        onTouchStart={onTouchStart}
-        onTouchMove={onTouchMove}
-        onTouchEnd={onTouchEnd}
+        className="flex-1 relative w-full overflow-hidden"
       >
         <div 
-          className="absolute top-0 left-0 h-full w-full flex transition-transform duration-500"
+          className="h-full flex transition-transform duration-500"
           style={{ transform: `translateX(-${currentPage * 100}%)` }}
+          onTouchStart={onTouchStart}
+          onTouchMove={onTouchMove}
+          onTouchEnd={onTouchEnd}
         >
           {pages.map((page, index) => (
             <div 
               key={index} 
-              className="w-full min-h-full flex-shrink-0 p-4 md:p-8 flex flex-col items-center"
+              className="w-full h-full flex-shrink-0 overflow-y-auto overflow-x-hidden"
             >
-              <div className="w-full max-w-6xl flex flex-col">
+              <div className="p-4 md:p-8 flex flex-col items-center min-h-full">
+                <div className="w-full max-w-6xl flex flex-col">
                 
                 {/* 网格布局 */}
                 {page.type === 'grid' && (
@@ -281,6 +282,7 @@ export default function ZenithBookshelf({ initialBooks, user }: ZenithBookshelfP
                     </div>
                   </div>
                 )}
+                </div>
               </div>
             </div>
           ))}
