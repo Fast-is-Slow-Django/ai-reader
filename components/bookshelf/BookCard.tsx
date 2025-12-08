@@ -169,7 +169,10 @@ export default function BookCard({
     if (isMultiSelectMode && onSelect) {
       // 多选模式：切换选中状态
       console.log(`🔄 Toggling selection`)
-      onSelect(book.id)
+      console.log(`📞 Calling onSelect with bookId: ${book.id}`)
+      console.log(`📞 onSelect function:`, onSelect)
+      const result = onSelect(book.id)
+      console.log(`📞 onSelect returned:`, result)
     } else {
       // 普通模式：打开阅读器
       console.log(`📖 Opening reader`)
