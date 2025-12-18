@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useMemo, useEffect } from 'react'
+import React, { useState, useMemo, useEffect, useRef } from 'react'
 import { Search, BookOpen, ChevronLeft, ChevronRight, Plus, Heart, Trash2, X } from 'lucide-react'
 import BookCard from './BookCard'
 import ProfileDropdown from './ProfileDropdown'
@@ -19,13 +19,17 @@ export default function ZenithBookshelf({ initialBooks, user }: ZenithBookshelfP
   const [activeCategory, setActiveCategory] = useState<Category>('All')
   const [searchQuery, setSearchQuery] = useState('')
   const [currentPage, setCurrentPage] = useState(0)
-  const [touchStart, setTouchStart] = useState<number | null>(null)
-  const [touchEnd, setTouchEnd] = useState<number | null>(null)
-  
+  const [swipeDebugText, setSwipeDebugText] = useState('')
+  const touchStartXRef = useRef<number | null>(null)
+  const touchStartYRef = useRef<number | null>(null)
+  const touchLastXRef = useRef<number | null>(null)
+  const touchLastYRef = useRef<number | null>(null)
+  const isHorizontalSwipeRef = useRef(false)
+
   // 多选模式
   const [isMultiSelectMode, setIsMultiSelectMode] = useState(false)
   const [selectedBooks, setSelectedBooks] = useState<Set<string>>(new Set())
-  
+
   const supabase = createClient()
 
   // 每页显示的书籍数量（根据屏幕大小调整）
@@ -120,32 +124,125 @@ export default function ZenithBookshelf({ initialBooks, user }: ZenithBookshelfP
 
   // 导航处理
   const nextPage = () => {
-    if (currentPage < totalPages - 1) setCurrentPage(c => c + 1)
+    setCurrentPage(c => (c < totalPages - 1 ? c + 1 : c))
   }
 
   const prevPage = () => {
-    if (currentPage > 0) setCurrentPage(c => c - 1)
+    setCurrentPage(c => (c > 0 ? c - 1 : c))
   }
 
   // 滑动手势处理
   const minSwipeDistance = 50
+  const debugSwipe =
+    typeof window !== 'undefined' &&
+    (window.localStorage.getItem('debugSwipe') === '1' ||
+      new URLSearchParams(window.location.search).get('debugSwipe') === '1')
   const onTouchStart = (e: React.TouchEvent) => {
-    setTouchEnd(null)
-    setTouchStart(e.targetTouches[0].clientX)
+    const t = e.targetTouches[0]
+    touchStartXRef.current = t.clientX
+    touchStartYRef.current = t.clientY
+    touchLastXRef.current = t.clientX
+    touchLastYRef.current = t.clientY
+    isHorizontalSwipeRef.current = false
+
+    if (debugSwipe) {
+      setSwipeDebugText(`start x=${Math.round(t.clientX)} y=${Math.round(t.clientY)} page=${currentPage + 1}/${totalPages}`)
+      console.log('[swipe] start', {
+        x: t.clientX,
+        y: t.clientY,
+        currentPage,
+        totalPages,
+      })
+    }
   }
   
   const onTouchMove = (e: React.TouchEvent) => {
-    setTouchEnd(e.targetTouches[0].clientX)
+    const t = e.targetTouches[0]
+    touchLastXRef.current = t.clientX
+    touchLastYRef.current = t.clientY
+
+    const sx = touchStartXRef.current
+    const sy = touchStartYRef.current
+    if (sx === null || sy === null) return
+
+    const dx = t.clientX - sx
+    const dy = t.clientY - sy
+
+    if (!isHorizontalSwipeRef.current) {
+      if (Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy)) {
+        isHorizontalSwipeRef.current = true
+        if (debugSwipe) {
+          setSwipeDebugText(`lock dx=${Math.round(dx)} dy=${Math.round(dy)} page=${currentPage + 1}/${totalPages}`)
+          console.log('[swipe] locked horizontal', { dx, dy })
+        }
+      }
+    }
   }
   
-  const onTouchEnd = () => {
-    if (touchStart === null || touchEnd === null) return
-    const distance = touchStart - touchEnd
+  const onTouchEnd = (e: React.TouchEvent) => {
+    const sx = touchStartXRef.current
+    const sy = touchStartYRef.current
+    const t = e.changedTouches[0]
+
+    if (sx === null || sy === null || !t) {
+      touchStartXRef.current = null
+      touchStartYRef.current = null
+      touchLastXRef.current = null
+      touchLastYRef.current = null
+      isHorizontalSwipeRef.current = false
+      return
+    }
+
+    touchLastXRef.current = t.clientX
+    touchLastYRef.current = t.clientY
+
+    const dx = t.clientX - sx
+    const dy = t.clientY - sy
+    const distance = sx - t.clientX
+
     const isLeftSwipe = distance > minSwipeDistance
     const isRightSwipe = distance < -minSwipeDistance
-    
-    if (isLeftSwipe) nextPage()
-    if (isRightSwipe) prevPage()
+
+    const isHorizontal = isHorizontalSwipeRef.current || (Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy))
+
+    if (debugSwipe) {
+      setSwipeDebugText(
+        `end dist=${Math.round(distance)} dx=${Math.round(dx)} dy=${Math.round(dy)} horiz=${isHorizontal ? '1' : '0'} page=${currentPage + 1}/${totalPages}`
+      )
+      console.log('[swipe] end', {
+        dx,
+        dy,
+        distance,
+        isLeftSwipe,
+        isRightSwipe,
+        currentPage,
+        totalPages,
+        isHorizontalSwipe: isHorizontal,
+      })
+    }
+
+    if (isHorizontal) {
+      if (isLeftSwipe) nextPage()
+      if (isRightSwipe) prevPage()
+    }
+
+    touchStartXRef.current = null
+    touchStartYRef.current = null
+    touchLastXRef.current = null
+    touchLastYRef.current = null
+    isHorizontalSwipeRef.current = false
+  }
+
+  const onTouchCancel = () => {
+    if (debugSwipe) {
+      setSwipeDebugText(`cancel page=${currentPage + 1}/${totalPages}`)
+      console.log('[swipe] cancel', { currentPage, totalPages })
+    }
+    touchStartXRef.current = null
+    touchStartYRef.current = null
+    touchLastXRef.current = null
+    touchLastYRef.current = null
+    isHorizontalSwipeRef.current = false
   }
 
   // 切换收藏状态的回调
@@ -367,12 +464,19 @@ export default function ZenithBookshelf({ initialBooks, user }: ZenithBookshelfP
       <main 
         className="flex-1 relative w-full overflow-hidden"
       >
+        {debugSwipe && (
+          <div className="absolute left-2 top-2 z-50 rounded-lg bg-black/70 px-3 py-2 text-xs text-white pointer-events-none">
+            <div>{`page ${currentPage + 1}/${totalPages}`}</div>
+            {swipeDebugText ? <div className="mt-1 opacity-90">{swipeDebugText}</div> : null}
+          </div>
+        )}
         <div 
           className="h-full flex transition-transform duration-500"
           style={{ transform: `translateX(-${currentPage * 100}%)` }}
           onTouchStart={onTouchStart}
           onTouchMove={onTouchMove}
           onTouchEnd={onTouchEnd}
+          onTouchCancel={onTouchCancel}
         >
           {pages.map((page, index) => (
             <div 
