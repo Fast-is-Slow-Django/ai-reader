@@ -124,14 +124,12 @@ export default function BookCard({
     // 如果移动超过阈值，取消长按
     if (deltaX > MOVE_THRESHOLD || deltaY > MOVE_THRESHOLD) {
       cancelLongPress()
+      isPressed.current = false
     }
   }
 
   // 触摸/鼠标抬起
   const handlePressEnd = (e: React.TouchEvent | React.MouseEvent) => {
-    // 阻止事件冒泡
-    e.stopPropagation()
-    
     const wasLongPress = isLongPress
     
     // 清理状态
