@@ -1,4 +1,3 @@
-import { GoogleGenerativeAI } from '@google/generative-ai'
 import { createClient } from '@/utils/supabase/server'
 
 export const runtime = 'edge'
@@ -25,7 +24,7 @@ export async function POST(req: Request) {
       return new Response('Missing required fields: text or context', { status: 400 })
     }
 
-    console.log('📝 AI 解释请求 (Gemini)')
+    console.log('📝 AI 解释请求 (OpenAI-compatible)')
     console.log('   目标词:', text)
     console.log('   上下文:', context.substring(0, 100) + '...')
     console.log('   书籍ID:', bookId || '(未提供)')
@@ -84,22 +83,24 @@ export async function POST(req: Request) {
       }
     }
 
-    // 4. 检查并显式传递 API 密钥
-    const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY
+    // 4. 检查 AI 配置
+    const baseUrl = (process.env.EXPLAIN_OPENAI_BASE_URL || 'https://link.devdove.site').replace(/\/$/, '')
+    const apiKey = process.env.EXPLAIN_OPENAI_API_KEY
+    const model = process.env.EXPLAIN_OPENAI_MODEL || 'gemini-2.5-flash-req'
+
     if (!apiKey) {
-      console.error('❌ GOOGLE_GENERATIVE_AI_API_KEY 未配置')
+      console.error('❌ EXPLAIN_OPENAI_API_KEY 未配置')
       return new Response('API Key not configured', { status: 500 })
     }
     console.log('✅ API Key 已找到，长度:', apiKey.length)
+    console.log('✅ Base URL:', baseUrl)
+    console.log('✅ Model:', model)
 
-    // 4. 使用 Google Generative AI SDK
+    // 4. 使用 OpenAI compatible Chat Completions
     let finalText = ''
     
     try {
-      const genAI = new GoogleGenerativeAI(apiKey)
-      const model = genAI.getGenerativeModel({ 
-        model: 'gemini-2.0-flash',
-        systemInstruction: `You are a language teaching expert specializing in the "i+1" (Comprehensible Input) method.
+      const systemInstruction = `You are a language teaching expert specializing in the "i+1" (Comprehensible Input) method.
 Your task is to explain the target word or phrase to a learner using SIMPLE English.
 
 Rules:
@@ -117,40 +118,68 @@ Examples:
 [Example Sentence 2]
 
 [Example Sentence 3]`
-      })
 
       const prompt = `Context: "${context}"\n\nTarget Word: "${text}"`
-      
+      const url = `${baseUrl}/v1/chat/completions`
+
       console.log('🚀 开始生成...')
-      const result = await model.generateContent(prompt)
-      const response = result.response
-      finalText = response.text()
-      
-      console.log('✅ AI 生成完成')
-      console.log('📝 生成的文本:', finalText)
-      console.log('📊 使用统计:', response.usageMetadata)
-    } catch (geminiError: any) {
-      console.error('❌ Gemini API 调用失败:', geminiError)
-      console.error('错误类型:', geminiError?.name)
-      console.error('错误信息:', geminiError?.message)
-      console.error('错误详情:', JSON.stringify(geminiError?.errorDetails || {}))
-      
-      // 返回更具体的错误信息
-      if (geminiError?.message?.includes('API key')) {
+
+      const resp = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: 'system', content: systemInstruction },
+            { role: 'user', content: prompt },
+          ],
+          temperature: 0.2,
+        }),
+      })
+
+      if (!resp.ok) {
+        const errText = await resp.text().catch(() => '')
+        console.error('❌ AI API 请求失败:', resp.status, errText)
         return new Response(
-          JSON.stringify({ 
-            error: 'API Key Error',
-            message: 'Google AI API key is invalid or expired'
-          }), 
-          { 
+          JSON.stringify({
+            error: 'AI Request Failed',
+            status: resp.status,
+            message: errText || resp.statusText,
+          }),
+          {
             status: 500,
-            headers: { 'Content-Type': 'application/json' }
+            headers: { 'Content-Type': 'application/json' },
           }
         )
       }
-      
-      // 重新抛出错误让外层catch处理
-      throw geminiError
+
+      const data = await resp.json().catch(() => null)
+      finalText = (data?.choices?.[0]?.message?.content || '').trim()
+
+      if (!finalText) {
+        console.error('❌ AI 返回为空')
+        return new Response(
+          JSON.stringify({
+            error: 'Empty AI Response',
+          }),
+          {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' },
+          }
+        )
+      }
+
+      console.log('✅ AI 生成完成')
+      console.log('📝 生成的文本:', finalText)
+      console.log('📊 使用统计:', data?.usage)
+    } catch (aiError: any) {
+      console.error('❌ AI API 调用失败:', aiError)
+      console.error('错误类型:', aiError?.name)
+      console.error('错误信息:', aiError?.message)
+      throw aiError
     }
 
     // 5. 保存到词汇缓存
