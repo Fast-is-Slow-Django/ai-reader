@@ -665,6 +665,9 @@ export default function MobileReader({
         isOpen={isAIPanelOpen}
         onClose={() => {
           setIsAIPanelOpen(false)
+          // 清空选中文本，确保下次点击同一个词时能重新触发解释
+          setAiSelectedText('')
+          setAiContext('')
           // 关闭面板后清除高亮
           if (renditionRef.current) {
             setTimeout(() => {

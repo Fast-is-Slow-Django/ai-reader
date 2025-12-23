@@ -1253,6 +1253,9 @@ export default function DirectEpubReader({ url, title, bookId }: DirectEpubReade
         isOpen={isAIPanelOpen}
         onClose={() => {
           setIsAIPanelOpen(false)
+          // 清空选中文本，确保下次点击同一个词时能重新触发解释
+          setAiSelectedText('')
+          setAiContext('')
           // 关闭面板时清理绿色高亮（可选）
           // 如果想保留高亮，可以注释掉下面的代码
           if (finalHighlightRef.current) {
@@ -1262,7 +1265,7 @@ export default function DirectEpubReader({ url, title, bookId }: DirectEpubReade
               const textNode = document.createTextNode(text)
               parent?.replaceChild(textNode, finalHighlightRef.current)
               finalHighlightRef.current = null
-              console.log('🗑️ AI面板关闭，已清理高亮')
+              console.log('🗑️ AI面板关闭，已清理高亮和选中状态')
             } catch (error) {
               console.warn('清理高亮失败:', error)
             }
