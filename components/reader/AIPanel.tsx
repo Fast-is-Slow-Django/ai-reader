@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { X, Volume2, Loader2, RefreshCw } from 'lucide-react'
 
 /**
@@ -31,6 +31,9 @@ export default function AIPanel({
   const [completion, setCompletion] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<Error | null>(null)
+  
+  // 追踪上一次的 isOpen 状态，用于检测面板从关闭变成打开
+  const prevIsOpenRef = useRef(false)
 
   /**
    * 调用 AI 生成解释（独立函数，可复用）
@@ -83,13 +86,25 @@ export default function AIPanel({
 
   /**
    * 自动触发 AI 解释
-   * 当面板打开且有选中文本时
+   * 当面板从关闭变成打开且有选中文本时
    */
   useEffect(() => {
-    if (isOpen && selectedText) {
+    // 检测面板从关闭变成打开
+    const wasJustOpened = isOpen && !prevIsOpenRef.current
+    prevIsOpenRef.current = isOpen
+    
+    console.log('🔄 AIPanel useEffect 触发:', { 
+      isOpen, 
+      wasJustOpened, 
+      selectedText: selectedText?.substring(0, 20),
+      hasContext: !!context 
+    })
+    
+    if (wasJustOpened && selectedText) {
+      console.log('✅ 面板刚打开，触发 fetchExplanation')
       fetchExplanation()
     }
-  }, [isOpen, selectedText, fetchExplanation])
+  }, [isOpen, selectedText, context, fetchExplanation])
 
   /**
    * 朗读单词 - 优先使用Gemini，降级到浏览器TTS
