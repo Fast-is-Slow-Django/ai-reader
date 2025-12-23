@@ -603,7 +603,7 @@ export default function DirectEpubReader({ url, title, bookId }: DirectEpubReade
   /**
    * 从事件中获取点击的文本节点和偏移量（扩展到单词边界）
    */
-  const getClickPosition = useCallback((event: any, expandToEnd = false): { node: Node; offset: number; element: HTMLElement } | null => {
+  const getClickPosition = useCallback((event: any, expandToEnd = false): { node: Node; offset: number; element: HTMLElement; word?: string } | null => {
     try {
       const iframe = viewerRef.current?.querySelector('iframe')
       if (!iframe?.contentDocument) return null
@@ -650,7 +650,8 @@ export default function DirectEpubReader({ url, title, bookId }: DirectEpubReade
         return {
           node,
           offset: finalOffset, // 根据参数返回单词的开始或结束位置
-          element: target
+          element: target,
+          word, // 返回识别出的单词
         }
       }
 
@@ -807,8 +808,10 @@ export default function DirectEpubReader({ url, title, bookId }: DirectEpubReade
       }
       
       // 检查是否点击在空白区域（没有实际文本）
+      // 但如果已经识别出单词（endInfo.word 存在），则不认为是空白
       const endText = endInfo.node.textContent?.substring(endInfo.offset, endInfo.offset + 10) || ''
-      if (endText.trim().length === 0) {
+      const hasValidWord = endInfo.word && endInfo.word.length > 0
+      if (endText.trim().length === 0 && !hasValidWord) {
         console.log('❌ 第二次点击在空白区域，取消选词')
         // 清理第一次点击的高亮
         if (tempHighlightOverlayRef.current) {
