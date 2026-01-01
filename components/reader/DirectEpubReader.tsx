@@ -1267,8 +1267,13 @@ export default function DirectEpubReader({ url, title, bookId }: DirectEpubReade
               const text = finalHighlightRef.current.textContent || ''
               const textNode = document.createTextNode(text)
               parent?.replaceChild(textNode, finalHighlightRef.current)
+              // 合并相邻的文本节点，恢复原始 DOM 结构
+              // 这样下次选词时能获取到完整的上下文
+              if (parent) {
+                (parent as Element).normalize()
+                console.log('🗑️ AI面板关闭，已清理高亮并合并文本节点')
+              }
               finalHighlightRef.current = null
-              console.log('🗑️ AI面板关闭，已清理高亮和选中状态')
             } catch (error) {
               console.warn('清理高亮失败:', error)
             }
